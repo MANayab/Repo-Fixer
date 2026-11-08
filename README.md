@@ -14,22 +14,25 @@ changing a maintainer's work.
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue)](https://pytest.org/)
 
 > **Milestone 1 / v0.1.0:** package, CLI, configuration, quality tooling, and
-documentation foundation. Repository auditing and automated improvements
-are planned later; current commands do not scan or modify repositories.
+> documentation foundation. Repository auditing and automated improvements
+> are planned later; current commands do not scan or modify repositories.
 
 ## Why Repo Fixer?
 
 Repositories can be hard to adopt when they lack a useful README, license,
 contribution guidance, issue templates, or reliable CI. Repo Fixer is planned
-as a repository improvement tool and developer productivity tool that
-prepares consistent improvements for human review.
+as a GitHub repository health check and developer productivity tool that
+prepares consistent improvements for human review. Future GitHub Actions
+automation will help maintainers identify gaps without bypassing pull-request
+review.
 
 ## What Repo Fixer will check
 
 Planned checks include README quality, LICENSE presence, CONTRIBUTING and
 Code of Conduct guidance, GitHub contribution templates, a GitHub Actions CI
 workflow, changelog, and common ignore rules. These checks are not implemented
-in v0.1.0.
+in v0.1.0. Later releases may include a README generator, LICENSE generator,
+and GitHub CI workflow generator for missing or incomplete project essentials.
 
 ## Quick Start
 
@@ -37,7 +40,7 @@ Requires Python 3.11+.
 
 ```bash
 python -m venv .venv
-# Windows PowerShell: .venv\\Scripts\\Activate.ps1
+# Windows PowerShell: .venv\Scripts\Activate.ps1
 # macOS/Linux: source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install .

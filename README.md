@@ -96,7 +96,7 @@ The v0.1.0 CLI makes no network requests and does not access GitHub.
 - **v0.2.0 — Audit:** repository essentials scan and explainable readiness score.
 - **v0.3.0 — Safe improvements:** generate selected files for review.
 - **Later — GitHub integration:** feature branch and one pull request, never
-  automatic merge.
+  automatic merge. Milestone 2 remains gated until this foundation is approved.
 
 ## Contributing
 

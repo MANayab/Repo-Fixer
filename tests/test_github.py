@@ -1,8 +1,6 @@
 """Mocked tests for safe GitHub branch, commit, and PR operations."""
 from __future__ import annotations
 
-# ruff: noqa: E501
-
 from io import BytesIO
 from typing import Any
 from urllib.error import HTTPError
@@ -20,6 +18,7 @@ from repo_fixer.github import (
     build_pull_request_body,
 )
 
+# ruff: noqa: E501
 # fmt: off
 
 

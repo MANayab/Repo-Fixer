@@ -5,8 +5,6 @@ Repository metadata is read-only. No merge, delete, or force-update operation ex
 """
 from __future__ import annotations
 
-# ruff: noqa: E501
-
 import json
 import os
 import re
@@ -17,6 +15,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+# ruff: noqa: E501
 # fmt: off
 
 

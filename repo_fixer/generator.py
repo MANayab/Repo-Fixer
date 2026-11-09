@@ -294,7 +294,8 @@ def apply_plan(plan: FixPlan, *, force: bool = False) -> tuple[list[str], list[s
     """Write only validated targets; force replacements are backed up first."""
     created: list[str] = []
     skipped = [
-        item for item in plan.skipped
+        item
+        for item in plan.skipped
         if not item.startswith("LICENSE — selection required")
     ]
     for item in plan.created + plan.proposed:

@@ -131,9 +131,7 @@ def fix(
                 item.startswith("LICENSE — selection required") for item in plan.skipped
             )
         ):
-            if not cast(
-                Callable[[], bool], click.get_text_stream("stdin").isatty
-            )():
+            if not cast(Callable[[], bool], click.get_text_stream("stdin").isatty)():
                 click.echo(
                     "LICENSE not generated: choose one with --license.", err=True
                 )

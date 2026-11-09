@@ -1,4 +1,5 @@
 """Mocked tests for safe GitHub branch, commit, and PR operations."""
+
 from __future__ import annotations
 
 from io import BytesIO

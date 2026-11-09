@@ -3,6 +3,7 @@
 Requires a fine-grained token with Contents: read/write and Pull requests: read/write.
 Repository metadata is read-only. No merge, delete, or force-update operation exists.
 """
+
 from __future__ import annotations
 
 import json

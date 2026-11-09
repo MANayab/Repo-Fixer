@@ -91,7 +91,7 @@ def test_apply_plan_refuses_force_replacement_of_directory(tmp_path: Path) -> No
     assert any("not a regular file" in item for item in skipped)
 
 
-def test_apply_plan_preserves_license_selection_note_in_plan_only(tmp_path: Path) -> None:
+def test_apply_plan_preserves_license_note(tmp_path: Path) -> None:
     plan = FixPlan(
         tmp_path,
         (),

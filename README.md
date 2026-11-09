@@ -2,37 +2,29 @@
 
 **Make any GitHub repository contributor-ready in minutes.**
 
-Repo Fixer is an open-source GitHub repository audit tool designed to identify
-missing project essentials and propose safe, reviewable improvements in one
-pull request. It aims to improve open-source readiness without silently
-changing a maintainer's work.
+Repo Fixer is a local repository audit tool that identifies missing project essentials and calculates an explainable readiness score. It reads repository files and reports evidence-backed recommendations. It does not modify the audited repository, access the network, or connect to GitHub.
 
 [![CI](https://github.com/MANayab/Repo-Fixer/actions/workflows/ci.yml/badge.svg)](https://github.com/MANayab/Repo-Fixer/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Code style: Ruff](https://img.shields.io/badge/code%20style-Ruff-D7FF64)](https://github.com/astral-sh/ruff)
-[![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue)](https://pytest.org/)
 
-> **Milestone 1 / v0.1.0:** package, CLI, configuration, quality tooling, and
-> documentation foundation. Repository auditing and automated improvements
-> are planned later; current commands do not scan or modify repositories.
+> **v0.2.0:** read-only repository essentials audit and explainable readiness scoring.
 
-## Why Repo Fixer?
+## What it checks
 
-Repositories can be hard to adopt when they lack a useful README, license,
-contribution guidance, issue templates, or reliable CI. Repo Fixer is planned
-as a GitHub repository health check and developer productivity tool that
-prepares consistent improvements for human review. Future GitHub Actions
-automation will help maintainers identify gaps without bypassing pull-request
-review.
+Repo Fixer evaluates nine repository essentials:
 
-## What Repo Fixer will check
+1. README presence and basic quality (project heading, substantive overview, installation, usage)
+2. LICENSE file
+3. CONTRIBUTING guide
+4. Code of Conduct
+5. GitHub issue templates
+6. Pull request template
+7. GitHub Actions workflow files
+8. CHANGELOG
+9. .gitignore
 
-Planned checks include README quality, LICENSE presence, CONTRIBUTING and
-Code of Conduct guidance, GitHub contribution templates, a GitHub Actions CI
-workflow, changelog, and common ignore rules. These checks are not implemented
-in v0.1.0. Later releases may include a README generator, LICENSE generator,
-and GitHub CI workflow generator for missing or incomplete project essentials.
+Each finding includes a stable check ID, severity, affected path, evidence, and a practical recommendation.
 
 ## Quick Start
 
@@ -45,94 +37,82 @@ python -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install .
 repo-fixer --help
-repo-fixer version
-repo-fixer init
 ```
 
-`repo-fixer init` creates `repo-fixer.yml` and refuses to overwrite an existing
-file. Use `--config path/to/repo-fixer.yml` to choose another config path.
+## Commands
 
-## Planned GitHub Action
+Audit the current directory:
 
-This is a roadmap illustration, not a working action interface:
-
-```yaml
-- uses: MANayab/Repo-Fixer@v1
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    create-pull-request: true
+```bash
+repo-fixer scan
+repo-fixer score
 ```
 
-## CLI preview
+Audit a selected repository:
 
-```text
-repo-fixer --help
-repo-fixer version   # prints Repo Fixer 0.1.0
-repo-fixer init      # creates repo-fixer.yml
-repo-fixer scan      # coming in v0.2.0
-repo-fixer score     # coming in v0.2.0
-repo-fixer fix       # coming in v0.3.0
+```bash
+repo-fixer scan path/to/repository
+repo-fixer score path/to/repository
 ```
 
-Scan and score are successful roadmap messages. Fix is also a roadmap message,
-not a file writer.
+Get machine-readable output:
 
-## Safety model
+```bash
+repo-fixer scan path/to/repository --format json
+repo-fixer score path/to/repository --format json
+```
 
-- Changes are proposed on a separate branch in a reviewable pull request.
-- No force-push, automatic merge, or direct push to `main`.
-- No file deletion or silent overwrite.
-- Generated changes require human review.
-- No source code is sent to third-party AI services.
-- No external database is required by the product design.
-- Future GitHub tokens will use minimum required permissions; never store
-  secrets in `repo-fixer.yml`.
+Use `repo-fixer init` to create a starter `repo-fixer.yml`. It refuses to overwrite an existing file.
 
-The v0.1.0 CLI makes no network requests and does not access GitHub.
+## Readiness score
+
+The score starts at 100. Each of the nine checks has a fixed weight; a failed check deducts that check's full weight. The weights total 100:
+
+| Check | Weight |
+|---|---:|
+| README | 20 |
+| LICENSE | 15 |
+| CONTRIBUTING | 10 |
+| Code of Conduct | 8 |
+| Issue templates | 10 |
+| Pull request template | 7 |
+| GitHub Actions CI | 15 |
+| CHANGELOG | 8 |
+| .gitignore | 7 |
+
+Grades: A (90–100), B (80–89), C (70–79), D (60–69), F (below 60). README quality gaps fail the README check and deduct its full weight. The score is a transparent checklist indicator, not a measure of code correctness or security.
+
+## Safety and privacy
+
+- The audit is local and read-only.
+- No repository files are created, edited, renamed, or deleted by scan or score.
+- No GitHub API calls or network requests are made by scan or score.
+- Symlinked check targets are not followed.
+- Findings report paths and evidence, not file contents.
+- No third-party AI service or external database is used.
+
+The `fix` command remains a v0.3.0 placeholder. File generation, branch creation, GitHub integration, and pull-request automation are not part of v0.2.0.
+
+## Development
+
+```bash
+python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m pip install -e .
+pytest
+ruff check .
+ruff format --check .
+mypy repo_fixer
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Roadmap
 
-- **v0.1.0 — Foundation:** package, CLI, validated config, tests, CI, docs.
-- **v0.2.0 — Audit:** repository essentials scan and explainable readiness score.
-- **v0.3.0 — Safe improvements:** generate selected files for review.
-- **Later — GitHub integration:** feature branch and one pull request, never
-  automatic merge. Milestone 2 remains gated until this foundation is approved.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), follow the [Code of Conduct](CODE_OF_CONDUCT.md),
-and open an issue for substantial proposals.
-
-## FAQ
-
-### Is Repo Fixer available today?
-
-The v0.1.0 CLI foundation is available. Scanning, scoring, generation, and
-GitHub integration are planned, not implemented.
-
-### Does Repo Fixer push directly to main?
-
-No. It is designed to use a separate branch and reviewable pull request. It
-will not force-push or merge automatically.
-
-### Does it send source code to an AI provider?
-
-No. Third-party AI services are not part of the design. The intended audit
-reads only repository files needed for configured checks.
-
-### Does it need a database?
-
-No external database is required by the product design.
-
-### Can I use it in CI?
-
-This release tests Repo Fixer's own package. A reusable GitHub Action is planned.
+- **v0.1.0 — Foundation:** package, CLI, config, tests, CI, and documentation.
+- **v0.2.0 — Audit:** read-only repository checks and explainable readiness score.
+- **v0.3.0 — Safe improvements:** generate selected files for human review.
+- **Later — GitHub integration:** optional feature branch and pull-request workflow, never automatic merge.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-## Help make open source healthier
-
-Star the repository, share it with another maintainer, or contribute. Feedback
-from real maintainers will shape the roadmap.

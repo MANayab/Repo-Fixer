@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo-fixer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Make any GitHub repository contributor-ready in minutes."
 readme = "README.md"
 requires-python = ">=3.11"

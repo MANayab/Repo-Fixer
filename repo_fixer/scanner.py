@@ -110,9 +110,7 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
     try:
         root = supplied.resolve(strict=True)
     except (OSError, RuntimeError) as exc:
-        raise ValueError(
-            f"Repository path cannot be resolved: {supplied}"
-        ) from exc
+        raise ValueError(f"Repository path cannot be resolved: {supplied}") from exc
     if not root.is_dir():
         raise ValueError(f"Repository path is not a directory: {root}")
 

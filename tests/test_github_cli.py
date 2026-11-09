@@ -106,7 +106,7 @@ def test_create_pr_dry_run_never_contacts_github(
     )
     result = invoke_create_pr(tmp_path, extra=["--dry-run"])
     assert result.exit_code == 0
-    assert "No pull request was created" in result.output
+    assert "no pull request was created" in result.output.lower()
 
 
 def test_create_pr_rejects_force_flag(tmp_path: Path) -> None:
@@ -153,7 +153,9 @@ def test_create_pr_reports_api_errors(
 def test_repository_name_is_resolved_from_github_origin(
     tmp_path: Path,
     remote: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
     git_dir = tmp_path / ".git"
     git_dir.mkdir()
     (git_dir / "config").write_text(
@@ -171,7 +173,11 @@ def test_repository_name_prefers_github_repository_environment(
     assert _github_repository_name(tmp_path) == "owner/repository"
 
 
-def test_repository_name_rejects_non_github_origin(tmp_path: Path) -> None:
+def test_repository_name_rejects_non_github_origin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
     git_dir = tmp_path / ".git"
     git_dir.mkdir()
     (git_dir / "config").write_text(
@@ -182,7 +188,11 @@ def test_repository_name_rejects_non_github_origin(tmp_path: Path) -> None:
         _github_repository_name(tmp_path)
 
 
-def test_repository_name_requires_remote_or_environment(tmp_path: Path) -> None:
+def test_repository_name_requires_remote_or_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
     with pytest.raises(ValueError, match="GITHUB_REPOSITORY"):
         _github_repository_name(tmp_path)
 

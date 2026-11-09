@@ -9,4 +9,4 @@
 - Symlinks are rejected in target paths; writes are confined to the resolved repository root.
 - No files are deleted. No GitHub API, authentication, branch, commit, pull-request, network, AI-service, or database functionality is part of v0.3.0.
 
-Repo Fixer cannot eliminate all filesystem races on every platform. Run it with ordinary user permissions, inspect the preview, and review generated files before committing them.
+Repo Fixer cannot eliminate all filesystem races on every platform. Run it with ordinary user permissions, inspect the preview, and review generated files before committing them. Generated CI workflows are templates for a repository's own automation; they do not cause Repo Fixer itself to make network calls.

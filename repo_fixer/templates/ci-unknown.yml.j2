@@ -1,0 +1,14 @@
+# {{ attribution }}
+# Language-neutral placeholder: Repo Fixer could not detect a project language.
+# Customize the commands below for your project's toolchain.
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add project-specific setup and validation commands
+        run: echo "Configure language-specific checks for this repository."

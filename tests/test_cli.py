@@ -55,13 +55,43 @@ def test_init_reports_filesystem_error(tmp_path) -> None:
     assert "Error" in result.output
 
 
-def test_fix_remains_a_v03_placeholder(tmp_path) -> None:
+def test_fix_dry_run_does_not_create_files(tmp_path) -> None:
+    result = CliRunner().invoke(main, ["fix", "--dry-run", "--path", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "Repo Fixer Fix Plan" in result.output
+    assert "No files were modified" in result.output
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_fix_yes_creates_missing_files(tmp_path) -> None:
     result = CliRunner().invoke(
-        main,
-        ["--config", str(tmp_path / "missing.yml"), "fix"],
+        main, ["fix", "--yes", "--license", "MIT", "--path", str(tmp_path)]
     )
     assert result.exit_code == 0
-    assert "coming in v0.3.0" in result.output
+    assert (tmp_path / "README.md").is_file()
+    assert (tmp_path / "LICENSE").is_file()
+    assert "Fix summary" in result.output
+
+
+def test_fix_does_not_replace_existing_readme_without_force(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("# Existing notes", encoding="utf-8")
+    result = CliRunner().invoke(main, ["fix", "--yes", "--path", str(tmp_path)])
+    assert result.exit_code == 0
+    assert readme.read_text(encoding="utf-8") == "# Existing notes"
+    assert (tmp_path / "repo-fixer-proposed-README.md").is_file()
+
+
+def test_force_requires_explicit_confirmation_even_with_yes(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("# Weak", encoding="utf-8")
+    result = CliRunner().invoke(
+        main, ["fix", "--force", "--yes", "--license", "MIT", "--path", str(tmp_path)],
+        input="n\\n",
+    )
+    assert result.exit_code == 0
+    assert readme.read_text(encoding="utf-8") == "# Weak"
+    assert "Cancelled" in result.output
 
 
 def test_cli_rejects_invalid_config(tmp_path) -> None:

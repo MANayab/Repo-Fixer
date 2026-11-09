@@ -5,6 +5,7 @@ import runpy
 import socket
 import sys
 
+import pytest
 from click.testing import CliRunner
 
 from repo_fixer import __version__
@@ -137,5 +138,7 @@ def test_cli_does_not_open_network_connections(monkeypatch, tmp_path) -> None:
 
 def test_python_module_entrypoint_runs(monkeypatch, capsys) -> None:
     monkeypatch.setattr(sys, "argv", ["repo_fixer", "version"])
-    runpy.run_module("repo_fixer", run_name="__main__")
+    with pytest.raises(SystemExit) as error:
+        runpy.run_module("repo_fixer", run_name="__main__")
+    assert error.value.code == 0
     assert "Repo Fixer 0.2.0" in capsys.readouterr().out

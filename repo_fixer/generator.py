@@ -77,7 +77,6 @@ def detect_language(root: Path) -> str:
     return found[0] if found else "unknown"
 
 
-
 def _regular_file(root: Path, relative: str) -> bool:
     path = root / relative
     try:
@@ -87,7 +86,6 @@ def _regular_file(root: Path, relative: str) -> bool:
         return True
     except (OSError, RuntimeError, ValueError):
         return False
-
 
 
 def _safe_target(root: Path, relative: str) -> Path:
@@ -107,7 +105,6 @@ def _safe_target(root: Path, relative: str) -> Path:
     return target
 
 
-
 def _context(root: Path, language: str, license_name: str | None) -> dict[str, Any]:
     name = re.sub(r"[^A-Za-z0-9._ -]", "", root.name).strip() or "Project"
     return {
@@ -116,7 +113,6 @@ def _context(root: Path, language: str, license_name: str | None) -> dict[str, A
         "license": license_name or "Choose a license",
         "attribution": ATTRIBUTION,
     }
-
 
 
 def _render(template_name: str, context: dict[str, Any]) -> str:
@@ -128,7 +124,6 @@ def _render(template_name: str, context: dict[str, Any]) -> str:
     env = SandboxedEnvironment(undefined=StrictUndefined, autoescape=False)
     env.globals.clear()
     return env.from_string(source).render(context).rstrip() + "\n"
-
 
 
 def _license_text(name: str, year: int, holder: str) -> str:
@@ -145,7 +140,6 @@ def _license_text(name: str, year: int, holder: str) -> str:
         .replace("[yyyy]", str(year))
         .replace("[name of copyright owner]", holder)
     )
-
 
 
 def build_plan(
@@ -291,7 +285,6 @@ def build_plan(
     return FixPlan(
         root, tuple(safe_created), tuple(proposed), tuple(skipped), tuple(unchanged)
     )
-
 
 
 def apply_plan(plan: FixPlan, *, force: bool = False) -> tuple[list[str], list[str]]:

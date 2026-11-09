@@ -1,6 +1,5 @@
 """Safe, local-only generation of repository starter files."""
 
-
 # No network, GitHub API, or subprocess integration is used by this module.
 from __future__ import annotations
 

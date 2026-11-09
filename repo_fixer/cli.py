@@ -7,15 +7,14 @@ from typing import Any, Protocol, cast
 
 import click
 
-
-class _TTYStream(Protocol):
-    def isatty(self) -> bool: ...
-
-
 from repo_fixer.config import load_config
 from repo_fixer.constants import CONFIG_FILENAME, DEFAULT_CONFIG, __version__
 from repo_fixer.generator import LICENSES, apply_plan, build_plan
 from repo_fixer.scanner import AuditReport, audit_repository
+
+
+class _TTYStream(Protocol):
+    def isatty(self) -> bool: ...
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})

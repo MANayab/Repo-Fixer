@@ -1,5 +1,6 @@
 """Command-line interface for Repo Fixer."""
 
+# File writes are delegated to the confirmation-gated local generator.
 import json
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,7 @@ import click
 
 from repo_fixer.config import load_config
 from repo_fixer.constants import CONFIG_FILENAME, DEFAULT_CONFIG, __version__
+from repo_fixer.generator import LICENSES, apply_plan, build_plan
 from repo_fixer.scanner import AuditReport, audit_repository
 
 
@@ -34,9 +36,7 @@ def version() -> None:
 
 @main.command()
 @click.argument(
-    "repository",
-    type=click.Path(path_type=Path, file_okay=False),
-    default=".",
+    "repository", type=click.Path(path_type=Path, file_okay=False), default="."
 )
 @click.option(
     "--format",
@@ -54,9 +54,7 @@ def scan(ctx: click.Context, repository: Path, output_format: str) -> None:
 
 @main.command()
 @click.argument(
-    "repository",
-    type=click.Path(path_type=Path, file_okay=False),
-    default=".",
+    "repository", type=click.Path(path_type=Path, file_okay=False), default="."
 )
 @click.option(
     "--format",
@@ -89,11 +87,96 @@ def score(ctx: click.Context, repository: Path, output_format: str) -> None:
 
 
 @main.command()
+@click.option("--dry-run", is_flag=True, help="Preview the plan without writing files.")
+@click.option(
+    "--path",
+    "repository",
+    type=click.Path(path_type=Path, file_okay=False),
+    default=Path("."),
+    show_default=True,
+    help="Repository directory to fix.",
+)
+@click.option(
+    "--yes", is_flag=True, help="Skip confirmation for new-file creation only."
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Allow replacing a weak README after explicit confirmation.",
+)
+@click.option(
+    "--license",
+    "license_name",
+    type=click.Choice(LICENSES),
+    help="Explicit license choice when LICENSE is missing.",
+)
 @click.pass_context
-def fix(ctx: click.Context) -> None:
-    """Prepare safe repository improvements (planned for v0.3.0)."""
+def fix(
+    ctx: click.Context,
+    dry_run: bool,
+    repository: Path,
+    yes: bool,
+    force: bool,
+    license_name: str | None,
+) -> None:
+    """Preview and safely generate missing project files locally."""
     _validate_config(ctx.obj)
-    click.echo("Fix generation is coming in v0.3.0.")
+    try:
+        plan = build_plan(repository, license_name=license_name, force=force)
+        if (
+            not dry_run
+            and license_name is None
+            and any(
+                item.startswith("LICENSE — selection required") for item in plan.skipped
+            )
+        ):
+            if not click.get_text_stream("stdin").isatty():  # type: ignore[operator]
+                click.echo(
+                    "LICENSE not generated: choose one with --license.", err=True
+                )
+            else:
+                license_name = click.prompt(
+                    "Choose a license", type=click.Choice(LICENSES), show_choices=True
+                )
+                plan = build_plan(repository, license_name=license_name, force=force)
+    except (OSError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    _show_plan(plan, dry_run=dry_run)
+    if plan.empty:
+        click.echo("No files need to be generated.")
+        return
+    if dry_run:
+        click.echo("No files were modified.")
+        return
+
+    if force:
+        click.echo("WARNING: --force may replace an existing weak README.")
+        if not click.confirm(
+            "Create a timestamped backup and replace it?", default=False
+        ):
+            click.echo("Cancelled. No files were modified.")
+            return
+    elif not yes and not click.confirm(
+        "Create the listed missing files?", default=False
+    ):
+        click.echo("Cancelled. No files were modified.")
+        return
+
+    try:
+        created, skipped = apply_plan(plan, force=force)
+    except (OSError, ValueError) as exc:
+        raise click.ClickException(f"File generation stopped safely: {exc}") from exc
+    click.echo("\nFix summary")
+    click.echo(f"Created: {len([p for p in created if 'backup' not in p])}")
+    for path in created:
+        click.echo(f"  + {path}")
+    if skipped:
+        click.echo(f"Skipped: {len(skipped)}")
+        for path in skipped:
+            click.echo(f"  - {path}")
+    if not created:
+        click.echo("No files were created.")
 
 
 @main.command()
@@ -112,6 +195,28 @@ def init(ctx: click.Context) -> None:
     except (OSError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"Created {path}")
+
+
+def _show_plan(plan: Any, *, dry_run: bool) -> None:
+    click.echo("Repo Fixer Fix Plan")
+    if plan.created:
+        click.echo("\nWould create:")
+        for item in plan.created:
+            click.echo(f"- {item.path} ({item.reason})")
+    if plan.proposed:
+        click.echo("\nWould propose:")
+        for item in plan.proposed:
+            click.echo(f"- {item.path} ({item.reason})")
+    if plan.skipped:
+        click.echo("\nWould skip:")
+        for item in plan.skipped:
+            click.echo(f"- {item}")
+    if plan.unchanged:
+        click.echo("\nUnchanged:")
+        for item in plan.unchanged:
+            click.echo(f"- {item}")
+    if dry_run:
+        click.echo("\nDry run: no files were modified.")
 
 
 def _run_audit(repository: Path) -> AuditReport:

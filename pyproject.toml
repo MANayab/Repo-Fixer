@@ -11,13 +11,16 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "MANayab" }]
 classifiers = ["Development Status :: 3 - Alpha", "Environment :: Console", "Intended Audience :: Developers", "License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Topic :: Software Development :: Quality Assurance"]
-dependencies = ["click>=8.1,<9", "pydantic>=2.7,<3", "PyYAML>=6,<7"]
+dependencies = ["click>=8.1,<9", "pydantic>=2.7,<3", "PyYAML>=6,<7", "Jinja2>=3.1,<4"]
 
 [project.scripts]
 repo-fixer = "repo_fixer.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["repo_fixer*"]
+
+[tool.setuptools.package-data]
+repo_fixer = ["templates/*.j2", "licenses/*"]
 
 [tool.ruff]
 target-version = "py311"

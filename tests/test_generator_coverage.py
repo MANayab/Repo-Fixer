@@ -133,9 +133,7 @@ def test_build_plan_records_existing_license_as_unchanged(tmp_path: Path) -> Non
 
 def test_build_plan_skips_existing_proposed_readme_target(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# weak", encoding="utf-8")
-    (tmp_path / "repo-fixer-proposed-README.md").write_text(
-        "keep", encoding="utf-8"
-    )
+    (tmp_path / "repo-fixer-proposed-README.md").write_text("keep", encoding="utf-8")
     plan = build_plan(tmp_path)
     assert any("proposed file already exists" in item for item in plan.skipped)
 
@@ -184,9 +182,7 @@ def test_cli_fix_invalid_path_has_nonzero_exit(tmp_path: Path) -> None:
 
 
 def test_cli_scan_json_output_contains_findings(tmp_path: Path) -> None:
-    result = CliRunner().invoke(
-        main, ["scan", str(tmp_path), "--format", "json"]
-    )
+    result = CliRunner().invoke(main, ["scan", str(tmp_path), "--format", "json"])
     assert result.exit_code == 0
     import json
 

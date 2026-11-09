@@ -1,23 +1,20 @@
 ---
 layout: default
 title: "Repo Fixer — Make Any GitHub Repository Contributor-Ready"
-description: "Repo Fixer audits your GitHub repository and opens a pull request with ready-to-review improvements for README, LICENSE, CI, templates, and open-source readiness."
+description: "Run a local, read-only audit of repository essentials and get an explainable readiness score."
 permalink: /
 ---
 
 <head>
 <link rel="canonical" href="https://manayab.github.io/Repo-Fixer/">
-<meta name="description" content="Repo Fixer audits your GitHub repository and opens a pull request with ready-to-review improvements for README, LICENSE, CI, templates, and open-source readiness.">
+<meta name="description" content="Repo Fixer checks README quality, license, contribution guidance, templates, CI, changelog, and ignore rules locally without changing repository files.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Repo Fixer — Make Any GitHub Repository Contributor-Ready">
-<meta property="og:description" content="Turn repository gaps into one clear, reviewable pull request.">
+<meta property="og:description" content="Find repository gaps with a local read-only audit and transparent readiness score.">
 <meta property="og:url" content="https://manayab.github.io/Repo-Fixer/">
-<meta property="og:image" content="https://manayab.github.io/Repo-Fixer/assets/social-preview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Repo Fixer — Make Any GitHub Repository Contributor-Ready">
-<meta name="twitter:description" content="A safer path to open-source readiness with reviewable improvements.">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Repo Fixer","applicationCategory":"DeveloperApplication","operatingSystem":"Cross-platform","description":"A GitHub repository improvement tool that audits open-source essentials and proposes reviewable improvements.","softwareVersion":"0.1.0","license":"https://github.com/MANayab/Repo-Fixer/blob/main/LICENSE","url":"https://manayab.github.io/Repo-Fixer/","codeRepository":"https://github.com/MANayab/Repo-Fixer"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Repo Fixer","applicationCategory":"DeveloperApplication","operatingSystem":"Cross-platform","description":"A local read-only repository essentials audit and explainable readiness score.","softwareVersion":"0.2.0","license":"https://github.com/MANayab/Repo-Fixer/blob/main/LICENSE","url":"https://manayab.github.io/Repo-Fixer/","codeRepository":"https://github.com/MANayab/Repo-Fixer"}
 </script>
 </head>
 
@@ -25,48 +22,45 @@ permalink: /
 
 **Make any GitHub repository contributor-ready in minutes.**
 
-Repo Fixer is an open-source developer tool planned to audit repository essentials and prepare safe improvements in one reviewable pull request. Version 0.1.0 establishes the Python CLI, configuration, tests, and project foundation. Auditing and pull-request features are later milestones.
+Repo Fixer v0.2.0 audits a local repository and reports evidence-backed gaps across nine contributor-readiness checks. Scan and score do not modify files, access the network, or call the GitHub API.
 
-[View the source on GitHub](https://github.com/MANayab/Repo-Fixer)
+## What it checks
 
-## What is Repo Fixer?
+- README presence and basic quality
+- LICENSE
+- CONTRIBUTING guide
+- Code of Conduct
+- GitHub issue templates
+- Pull request template
+- GitHub Actions workflow files
+- CHANGELOG
+- .gitignore
 
-Repo Fixer is a GitHub repository health check and repository improvement tool. It helps maintainers improve open-source readiness by finding missing contributor-facing essentials and preparing changes for human review.
+## Quick start
 
-## How does Repo Fixer work?
+Install Python 3.11+ and run:
 
-The planned workflow inspects only files needed for configured checks, reports actionable gaps, prepares selected improvements on a separate branch, and opens one pull request. A maintainer reviews the diff and decides whether to merge it. Scanning and GitHub integration are not implemented in v0.1.0.
+```bash
+python -m pip install .
+repo-fixer scan path/to/repository
+repo-fixer score path/to/repository
+```
 
-## What files will Repo Fixer generate?
+Use `--format json` for structured output. Findings include a stable check ID, severity, affected path, evidence, and recommendation.
 
-Planned outputs include a README generator, LICENSE generator, CONTRIBUTING guide, Code of Conduct, GitHub contribution templates, GitHub CI workflow generator, changelog, and `.gitignore`. Existing files will never be silently overwritten.
+## Explainable score
 
-## Is Repo Fixer free?
+The readiness score starts at 100. Nine checks have fixed weights totaling 100 points. A failed check loses its assigned weight. The score is a transparent checklist indicator, not a measure of code quality or security.
 
-Yes. Repo Fixer is open-source software under the MIT License. No paid service is required by the project foundation.
+## Safety
 
-## Does Repo Fixer push directly to main?
-
-No. It uses a separate branch and reviewable pull request. It will not force-push, delete files, silently overwrite existing content, or merge automatically.
-
-## Does Repo Fixer send my code to third-party services?
-
-Repo Fixer does not send source code to third-party AI services. The intended audit reads only repository files needed for its checks. It requires no external database. Future GitHub integration will use a token with minimum permissions for the selected operation. The v0.1.0 CLI makes no network requests.
-
-## Current capabilities
-
-- Installable Python 3.11+ package and Click CLI.
-- Validated YAML configuration with safe defaults.
-- `repo-fixer init` creates a starter config and refuses to overwrite one.
-- `scan` and `score` announce v0.2.0; `fix` announces v0.3.0.
+The audit is local and read-only. It does not create, edit, rename, or delete files in the target repository. Scan and score make no network requests and do not access GitHub. Symlinked check targets are not followed.
 
 ## Roadmap
 
-1. **v0.1.0 — Foundation:** package, CLI, config, tests, CI, and documentation.
-2. **v0.2.0 — Audit:** repository checks and explainable readiness score.
-3. **v0.3.0 — Improvements:** safe file generation and reviewable change set.
-4. **Later — GitHub integration:** feature branch and pull-request creation with minimum permissions.
+- **v0.1.0 — Foundation:** package, CLI, config, tests, CI, and documentation.
+- **v0.2.0 — Audit:** read-only repository checks and explainable score.
+- **v0.3.0 — Improvements:** safe file generation for human review.
+- **Later — GitHub integration:** optional branch and pull-request workflow with no automatic merge.
 
-## Get involved
-
-Star [the repository](https://github.com/MANayab/Repo-Fixer), share it with maintainers, or contribute. See [CONTRIBUTING.md](https://github.com/MANayab/Repo-Fixer/blob/main/CONTRIBUTING.md).
+See the [source repository](https://github.com/MANayab/Repo-Fixer), [contribution guide](https://github.com/MANayab/Repo-Fixer/blob/main/CONTRIBUTING.md), and [MIT license](https://github.com/MANayab/Repo-Fixer/blob/main/LICENSE).

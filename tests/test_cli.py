@@ -1,5 +1,4 @@
 """Tests for the command-line interface."""
-
 import socket
 
 from click.testing import CliRunner
@@ -9,7 +8,7 @@ from repo_fixer.cli import main
 
 
 def test_package_imports_with_version() -> None:
-    assert __version__ == "0.1.0"
+    assert __version__ == "0.2.0"
 
 
 def test_help_lists_commands() -> None:
@@ -42,16 +41,10 @@ def test_init_refuses_to_overwrite_existing_file(tmp_path) -> None:
     assert path.read_text(encoding="utf-8") == "keep: me\n"
 
 
-def test_preview_commands_succeed(tmp_path) -> None:
-    path = tmp_path / "missing.yml"
-    for command, expected in (
-        ("scan", "coming in v0.2.0"),
-        ("score", "coming in v0.2.0"),
-        ("fix", "coming in v0.3.0"),
-    ):
-        result = CliRunner().invoke(main, ["--config", str(path), command])
-        assert result.exit_code == 0
-        assert expected in result.output
+def test_fix_remains_a_v03_placeholder(tmp_path) -> None:
+    result = CliRunner().invoke(main, ["--config", str(tmp_path / "missing.yml"), "fix"])
+    assert result.exit_code == 0
+    assert "coming in v0.3.0" in result.output
 
 
 def test_cli_does_not_open_network_connections(monkeypatch, tmp_path) -> None:

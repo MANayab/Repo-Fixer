@@ -1,4 +1,5 @@
 """Tests for the command-line interface."""
+
 import socket
 
 from click.testing import CliRunner
@@ -42,7 +43,10 @@ def test_init_refuses_to_overwrite_existing_file(tmp_path) -> None:
 
 
 def test_fix_remains_a_v03_placeholder(tmp_path) -> None:
-    result = CliRunner().invoke(main, ["--config", str(tmp_path / "missing.yml"), "fix"])
+    result = CliRunner().invoke(
+        main,
+        ["--config", str(tmp_path / "missing.yml"), "fix"],
+    )
     assert result.exit_code == 0
     assert "coming in v0.3.0" in result.output
 

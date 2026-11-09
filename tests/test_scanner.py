@@ -1,4 +1,5 @@
 """Tests for read-only repository scanning and scoring."""
+
 import json
 
 import pytest
@@ -9,18 +10,30 @@ from repo_fixer.scanner import audit_repository
 
 
 def make_complete_repo(root):
-    (root / "README.md").write_text(
-        "# Sample Project\n\nA useful project description with enough detail to explain its purpose.\n\n"
-        "## Installation\n\nInstall it with pip.\n\n## Usage\n\nRun sample-command.\n",
-        encoding="utf-8",
+    readme = (
+        "# Sample Project\n\n"
+        "A useful project description with enough detail to explain its purpose.\n\n"
+        "## Installation\n\nInstall it with pip.\n\n"
+        "## Usage\n\nRun sample-command.\n"
     )
-    for name in ("LICENSE", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "CHANGELOG.md", ".gitignore"):
+    (root / "README.md").write_text(readme, encoding="utf-8")
+    required_files = (
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        "CHANGELOG.md",
+        ".gitignore",
+    )
+    for name in required_files:
         (root / name).write_text("present\n", encoding="utf-8")
-    (root / ".github" / "ISSUE_TEMPLATE").mkdir(parents=True)
-    (root / ".github" / "ISSUE_TEMPLATE" / "bug.yml").write_text("name: Bug\n", encoding="utf-8")
-    (root / ".github" / "workflows").mkdir(parents=True)
-    (root / ".github" / "workflows" / "ci.yml").write_text("name: CI\n", encoding="utf-8")
-    (root / ".github" / "PULL_REQUEST_TEMPLATE.md").write_text("Summary\n", encoding="utf-8")
+    issue_dir = root / ".github" / "ISSUE_TEMPLATE"
+    issue_dir.mkdir(parents=True)
+    (issue_dir / "bug.yml").write_text("name: Bug\n", encoding="utf-8")
+    workflow_dir = root / ".github" / "workflows"
+    workflow_dir.mkdir(parents=True)
+    (workflow_dir / "ci.yml").write_text("name: CI\n", encoding="utf-8")
+    pr_template = root / ".github" / "PULL_REQUEST_TEMPLATE.md"
+    pr_template.write_text("Summary\n", encoding="utf-8")
 
 
 def test_complete_repository_scores_one_hundred(tmp_path):
@@ -37,8 +50,15 @@ def test_empty_repository_reports_all_nine_gaps(tmp_path):
     assert report.score == 0
     assert len(report.findings) == 9
     assert {item.check_id for item in report.findings} == {
-        "README", "LICENSE", "CONTRIBUTING", "CODE_OF_CONDUCT",
-        "ISSUE_TEMPLATES", "PR_TEMPLATE", "CI", "CHANGELOG", "GITIGNORE",
+        "README",
+        "LICENSE",
+        "CONTRIBUTING",
+        "CODE_OF_CONDUCT",
+        "ISSUE_TEMPLATES",
+        "PR_TEMPLATE",
+        "CI",
+        "CHANGELOG",
+        "GITIGNORE",
     }
 
 

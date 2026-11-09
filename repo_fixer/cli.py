@@ -1,4 +1,6 @@
 """Command-line interface for Repo Fixer."""
+
+# File writes are delegated to the confirmation-gated local generator.
 import json
 from pathlib import Path
 from typing import Any

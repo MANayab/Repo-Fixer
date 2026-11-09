@@ -3,7 +3,7 @@
 # File writes are delegated to the confirmation-gated local generator.
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO, cast
 
 import click
 
@@ -130,7 +130,7 @@ def fix(
                 item.startswith("LICENSE — selection required") for item in plan.skipped
             )
         ):
-            if not click.get_text_stream("stdin").isatty():
+            if not cast(TextIO, click.get_text_stream("stdin")).isatty():
                 click.echo(
                     "LICENSE not generated: choose one with --license.", err=True
                 )

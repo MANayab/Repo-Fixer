@@ -9,6 +9,8 @@ from click.testing import CliRunner
 from repo_fixer.cli import _github_repository_name, main
 from repo_fixer.github import GitHubAPIError, GitHubClient, PullRequestResult
 
+# fmt: off
+
 
 class FakeGitHubClient:
     def __init__(self, error: Exception | None = None) -> None:

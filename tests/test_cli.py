@@ -88,7 +88,7 @@ def test_force_requires_explicit_confirmation_even_with_yes(tmp_path) -> None:
     result = CliRunner().invoke(
         main,
         ["fix", "--force", "--yes", "--license", "MIT", "--path", str(tmp_path)],
-        input="n\\n",
+        input="n\n",
     )
     assert result.exit_code == 0
     assert readme.read_text(encoding="utf-8") == "# Weak"

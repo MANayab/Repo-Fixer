@@ -1,16 +1,22 @@
 """Command-line interface for Repo Fixer."""
 
 # File writes are delegated to the confirmation-gated local generator.
+import configparser
 import json
+import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import click
 
 from repo_fixer.config import load_config
 from repo_fixer.constants import CONFIG_FILENAME, DEFAULT_CONFIG, __version__
 from repo_fixer.generator import LICENSES, apply_plan, build_plan
+from repo_fixer.github import GitHubClient, GitHubError
 from repo_fixer.scanner import AuditReport, audit_repository
+
+# fmt: off
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -110,6 +116,11 @@ def score(ctx: click.Context, repository: Path, output_format: str) -> None:
     type=click.Choice(LICENSES),
     help="Explicit license choice when LICENSE is missing.",
 )
+@click.option(
+    "--create-pr",
+    is_flag=True,
+    help="Create a reviewable GitHub pull request instead of writing local files.",
+)
 @click.pass_context
 def fix(
     ctx: click.Context,
@@ -118,9 +129,15 @@ def fix(
     yes: bool,
     force: bool,
     license_name: str | None,
+    create_pr: bool,
 ) -> None:
-    """Preview and safely generate missing project files locally."""
+    """Preview and safely generate missing project files locally or by PR."""
     _validate_config(ctx.obj)
+    if create_pr and force:
+        raise click.ClickException(
+            "--force cannot be used with --create-pr; remote PR generation "
+            "never replaces files."
+        )
     try:
         plan = build_plan(repository, license_name=license_name, force=force)
         if (
@@ -147,7 +164,42 @@ def fix(
         click.echo("No files need to be generated.")
         return
     if dry_run:
-        click.echo("No files were modified.")
+        click.echo("No files were modified and no pull request was created.")
+        return
+
+    if create_pr:
+        try:
+            repository_name = _github_repository_name(repository)
+            files = [
+                {"path": item.path, "content": item.content, "reason": item.reason}
+                for item in plan.created + plan.proposed
+                if not item.replace
+            ]
+            if not files:
+                click.echo("No additions are available for a pull request.")
+                return
+            if not yes and not click.confirm(
+                f"Create one GitHub pull request with {len(files)} new file(s)?",
+                default=False,
+            ):
+                click.echo("Cancelled. No GitHub changes were made.")
+                return
+            client = GitHubClient.from_environment()
+            result = client.create_improvement_pr(
+                repository_name,
+                files,
+                audit_summary=(
+                    f"Local audit planned {len(files)} new file(s) for review."
+                ),
+            )
+        except (GitHubError, OSError, ValueError) as exc:
+            raise click.ClickException(str(exc)) from exc
+        click.echo("\nPull request created")
+        click.echo(f"URL: {result.url}")
+        click.echo(f"Branch: {result.branch}")
+        click.echo(f"Base: {result.base}")
+        click.echo(f"Commit: {result.commit_sha}")
+        click.echo("No merge was performed. Review and merge manually if approved.")
         return
 
     if force:
@@ -195,6 +247,38 @@ def init(ctx: click.Context) -> None:
     except (OSError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"Created {path}")
+
+
+def _github_repository_name(repository: Path) -> str:
+    """Resolve owner/name from GITHUB_REPOSITORY or the local origin URL."""
+    configured = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if configured:
+        if configured.count("/") == 1:
+            return configured
+        raise ValueError("GITHUB_REPOSITORY must use owner/name format.")
+    config_path = repository.resolve() / ".git" / "config"
+    if not config_path.is_file():
+        raise ValueError(
+            "Could not find .git/config. Set GITHUB_REPOSITORY=owner/name explicitly."
+        )
+    parser = configparser.ConfigParser()
+    try:
+        parser.read(config_path, encoding="utf-8")
+        remote = parser.get('remote "origin"', "url")
+    except (configparser.Error, OSError) as exc:
+        raise ValueError("Could not read the origin remote from .git/config.") from exc
+    if remote.startswith("git@github.com:"):
+        name = remote.removeprefix("git@github.com:")
+    else:
+        parsed = urlparse(remote)
+        if parsed.hostname not in {"github.com", "www.github.com"}:
+            raise ValueError("The origin remote must point to github.com.")
+        name = parsed.path.lstrip("/")
+    if name.endswith(".git"):
+        name = name[:-4]
+    if name.count("/") != 1:
+        raise ValueError("Could not resolve the GitHub origin as owner/name.")
+    return name
 
 
 def _show_plan(plan: Any, *, dry_run: bool) -> None:

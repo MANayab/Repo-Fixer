@@ -9,7 +9,7 @@ permalink: /
 
 **Make any GitHub repository contributor-ready in minutes.**
 
-The current milestone adds local, confirmation-gated starter-file generation to the read-only audit and readiness score. These changes are under review and are not part of a published release. The tool does not connect to GitHub or make network requests.
+Repo Fixer audits repository essentials, calculates an explainable readiness score, and generates missing starter files locally. Optional GitHub integration can open a reviewable pull request on a separate branch.
 
 ## Quick start
 
@@ -19,8 +19,8 @@ repo-fixer scan
 repo-fixer fix --dry-run
 ```
 
-## Safety
+## Optional GitHub pull requests
 
-Dry-run makes no changes. Existing files are skipped. Weak README content is proposed separately. Replacing a README requires explicit confirmation and a timestamped backup. License generation requires an explicit choice. No files are deleted and no GitHub integration is implemented.
+Set a fine-grained `GITHUB_TOKEN` with Contents read/write and Pull requests read/write permissions for the target repository, then run `repo-fixer fix --create-pr`. Repo Fixer proposes additions on a separate branch and opens a pull request for human review. It never pushes to the default branch or merges automatically.
 
-See [usage](usage.md), [templates](templates.md), and [safety guarantees](safety.md).
+See [usage](usage.md), [templates](templates.md), [safety guarantees](safety.md), and [GitHub integration](github-integration.md).

@@ -51,7 +51,9 @@ def scan(ctx: click.Context, repository: Path, output_format: str) -> None:
 
 
 @main.command()
-@click.argument("repository", type=click.Path(path_type=Path, file_okay=False), default=".")
+@click.argument(
+    "repository", type=click.Path(path_type=Path, file_okay=False), default="."
+)
 @click.option("--format", "output_format", type=click.Choice(["text", "json"]),
               default="text", show_default=True)
 @click.pass_context
@@ -69,7 +71,10 @@ def score(ctx: click.Context, repository: Path, output_format: str) -> None:
     else:
         click.echo(f"Readiness score: {report.score}/100 (Grade {report.grade})")
         click.echo(f"Checks passed: {report.checks_passed}/{report.checks_total}")
-        click.echo("Scoring: each of the 9 checks has a fixed weight; a failed check loses its full weight.")
+        click.echo(
+            "Scoring: each of the 9 checks has a fixed weight; "
+            "a failed check loses its full weight."
+        )
 
 
 @main.command()

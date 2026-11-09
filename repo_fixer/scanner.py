@@ -1,11 +1,12 @@
 """Read-only repository essentials audit and explainable readiness scoring."""
 
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-import re
 from typing import Literal
 
 Severity = Literal["critical", "high", "medium", "low", "info"]
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -116,7 +117,7 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
         raise ValueError(f"Repository path is not a directory: {root}")
 
     findings: list[Finding] = []
-    passed: set[str] = []
+    passed: set[str] = set()
     readme_candidates = ("README.md", "README.rst", "README.txt", "README")
     readme_path = next(
         (name for name in readme_candidates if _safe_file(root, name)),
@@ -129,7 +130,10 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
                 "high",
                 "README.md",
                 "No supported README file was found at the repository root.",
-                "Add a README with a project overview, installation steps, and usage examples.",
+                (
+                    "Add a README with a project overview, installation steps, "
+                    "and usage examples."
+                ),
             )
         )
     else:
@@ -152,7 +156,10 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
                     "medium",
                     readme_path,
                     "Missing or weak elements: " + ", ".join(missing) + ".",
-                    "Add a clear project heading, meaningful overview, installation instructions, and practical usage examples.",
+                    (
+                        "Add a clear project heading, meaningful overview, "
+                        "installation instructions, and practical usage examples."
+                    ),
                 )
             )
         else:
@@ -169,13 +176,19 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
             "CONTRIBUTING",
             ("CONTRIBUTING.md", "CONTRIBUTING.rst", ".github/CONTRIBUTING.md"),
             "medium",
-            "Add contribution instructions covering setup, tests, and the review process.",
+            (
+                "Add contribution instructions covering setup, tests, "
+                "and the review process."
+            ),
         ),
         (
             "CODE_OF_CONDUCT",
             ("CODE_OF_CONDUCT.md", "CODE_OF_CONDUCT.rst", ".github/CODE_OF_CONDUCT.md"),
             "low",
-            "Add a Code of Conduct describing expected community behavior and reporting channels.",
+            (
+                "Add a Code of Conduct describing expected community behavior "
+                "and reporting channels."
+            ),
         ),
         (
             "PR_TEMPLATE",
@@ -197,7 +210,10 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
             "GITIGNORE",
             (".gitignore",),
             "low",
-            "Add a .gitignore for generated files, caches, virtual environments, and local secrets.",
+            (
+                "Add a .gitignore for generated files, caches, virtual environments, "
+                "and local secrets."
+            ),
         ),
     ]
     for check_id, candidates, severity, recommendation in checks:
@@ -246,8 +262,14 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
                 "ISSUE_TEMPLATES",
                 "low",
                 ".github/ISSUE_TEMPLATE/",
-                "No recognized issue-template directory containing regular files was found.",
-                "Add at least one GitHub issue template, such as a bug report or feature request.",
+                (
+                    "No recognized issue-template directory containing regular "
+                    "files was found."
+                ),
+                (
+                    "Add at least one GitHub issue template, such as a bug report "
+                    "or feature request."
+                ),
             )
         )
 
@@ -272,8 +294,14 @@ def audit_repository(repository: Path | str = ".") -> AuditReport:
                 "CI",
                 "medium",
                 ".github/workflows/",
-                "No regular .yml or .yaml workflow file was found in .github/workflows/.",
-                "Add a GitHub Actions workflow that installs dependencies and runs the project's relevant quality checks.",
+                (
+                    "No regular .yml or .yaml workflow file was found "
+                    "in .github/workflows/."
+                ),
+                (
+                    "Add a GitHub Actions workflow that installs dependencies "
+                    "and runs the project's relevant quality checks."
+                ),
             )
         )
 

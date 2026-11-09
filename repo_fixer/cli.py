@@ -2,9 +2,8 @@
 
 # File writes are delegated to the confirmation-gated local generator.
 import json
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import click
 
@@ -131,7 +130,8 @@ def fix(
                 item.startswith("LICENSE — selection required") for item in plan.skipped
             )
         ):
-            if not cast(Callable[[], bool], click.get_text_stream("stdin").isatty)():
+            isatty = getattr(click.get_text_stream("stdin"), "isatty", None)
+            if not callable(isatty) or not isatty():
                 click.echo(
                     "LICENSE not generated: choose one with --license.", err=True
                 )

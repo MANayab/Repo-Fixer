@@ -31,6 +31,8 @@ jobs:
           python -m pip install -e . -r requirements-dev.txt
       - name: Ruff lint
         run: ruff check .
+      - name: Temporary formatter diff for review
+        run: ruff format --diff .
       - name: Ruff format
         run: ruff format --check .
       - name: MyPy

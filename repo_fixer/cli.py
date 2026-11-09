@@ -2,11 +2,15 @@
 
 # File writes are delegated to the confirmation-gated local generator.
 import json
-import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 import click
+
+
+class _TTYStream(Protocol):
+    def isatty(self) -> bool: ...
+
 
 from repo_fixer.config import load_config
 from repo_fixer.constants import CONFIG_FILENAME, DEFAULT_CONFIG, __version__
@@ -131,7 +135,7 @@ def fix(
                 item.startswith("LICENSE — selection required") for item in plan.skipped
             )
         ):
-            if not sys.stdin.isatty():
+            if not cast(_TTYStream, click.get_text_stream("stdin")).isatty():
                 click.echo(
                     "LICENSE not generated: choose one with --license.", err=True
                 )

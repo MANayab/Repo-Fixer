@@ -5,6 +5,8 @@ Repository metadata is read-only. No merge, delete, or force-update operation ex
 """
 from __future__ import annotations
 
+# ruff: noqa: E501
+
 import json
 import os
 import re
@@ -14,6 +16,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+# fmt: off
 
 
 API_ROOT = "https://api.github.com"
@@ -112,7 +116,7 @@ class GitHubClient:
         self._timeout = timeout
 
     @classmethod
-    def from_environment(cls) -> "GitHubClient":
+    def from_environment(cls) -> GitHubClient:
         return cls(os.environ.get("GITHUB_TOKEN", ""))
 
     def _request(

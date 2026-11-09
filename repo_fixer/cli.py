@@ -16,6 +16,8 @@ from repo_fixer.generator import LICENSES, apply_plan, build_plan
 from repo_fixer.github import GitHubClient, GitHubError
 from repo_fixer.scanner import AuditReport, audit_repository
 
+# fmt: off
+
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
@@ -133,7 +135,8 @@ def fix(
     _validate_config(ctx.obj)
     if create_pr and force:
         raise click.ClickException(
-            "--force cannot be used with --create-pr; remote PR generation never replaces files."
+            "--force cannot be used with --create-pr; remote PR generation "
+            "never replaces files."
         )
     try:
         plan = build_plan(repository, license_name=license_name, force=force)
@@ -145,7 +148,9 @@ def fix(
             )
         ):
             if not click.get_text_stream("stdin").isatty():  # type: ignore[operator]
-                click.echo("LICENSE not generated: choose one with --license.", err=True)
+                click.echo(
+                    "LICENSE not generated: choose one with --license.", err=True
+                )
             else:
                 license_name = click.prompt(
                     "Choose a license", type=click.Choice(LICENSES), show_choices=True

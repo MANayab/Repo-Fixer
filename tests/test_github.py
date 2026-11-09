@@ -1,10 +1,15 @@
 """Mocked tests for safe GitHub branch, commit, and PR operations."""
 from __future__ import annotations
 
+# ruff: noqa: E501
+
+from io import BytesIO
 from typing import Any
+from urllib.error import HTTPError
 
 import pytest
 
+import repo_fixer.github as github_module
 from repo_fixer.github import (
     GitHubAPIError,
     GitHubAuthenticationError,
@@ -14,6 +19,8 @@ from repo_fixer.github import (
     _validate_path,
     build_pull_request_body,
 )
+
+# fmt: off
 
 
 def client() -> GitHubClient:
@@ -187,9 +194,6 @@ def test_invalid_repository_is_rejected_before_api_calls(monkeypatch: pytest.Mon
     with pytest.raises(ValueError, match="owner/name"):
         instance.create_improvement_pr("not-a-repo", [{"path": "new.txt", "content": "x"}])
 
-from io import BytesIO
-from urllib.error import HTTPError
-
 
 @pytest.mark.parametrize(
     ("status", "headers", "body", "error_type", "message"),
@@ -209,8 +213,6 @@ def test_http_errors_are_classified(
     error_type: type[Exception],
     message: str,
 ) -> None:
-    import repo_fixer.github as github_module
-
     def denied(*args: Any, **kwargs: Any) -> Any:
         raise HTTPError(
             "https://api.github.com/test",

@@ -197,7 +197,10 @@ def build_plan(
     }
     for check_id, path in check_to_path.items():
         if check_id not in missing:
-            unchanged.append(path)
+            if _regular_file(root, path):
+                skipped.append(f"{path} — already exists")
+            else:
+                unchanged.append(path)
             continue
         if check_id == "CI":
             template = WORKFLOWS.get(language)
@@ -290,12 +293,15 @@ def build_plan(
 def apply_plan(plan: FixPlan, *, force: bool = False) -> tuple[list[str], list[str]]:
     """Write only validated targets; force replacements are backed up first."""
     created: list[str] = []
-    skipped = list(plan.skipped)
+    skipped = [
+        item for item in plan.skipped
+        if not item.startswith("LICENSE — selection required")
+    ]
     for item in plan.created + plan.proposed:
         target = _safe_target(plan.repository, item.path)
         if target.exists():
             if not (force and item.replace):
-                skipped.append(f"{item.path} — existing file preserved")
+                skipped.append(f"{item.path} — already exists; existing file preserved")
                 continue
             if target.is_symlink() or not target.is_file():
                 skipped.append(

@@ -186,3 +186,40 @@ def test_invalid_repository_is_rejected_before_api_calls(monkeypatch: pytest.Mon
     )
     with pytest.raises(ValueError, match="owner/name"):
         instance.create_improvement_pr("not-a-repo", [{"path": "new.txt", "content": "x"}])
+
+from io import BytesIO
+from urllib.error import HTTPError
+
+
+@pytest.mark.parametrize(
+    ("status", "headers", "body", "error_type", "message"),
+    [
+        (401, {}, b'{"message":"Bad credentials"}', GitHubAuthenticationError, "GITHUB_TOKEN"),
+        (403, {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1794229000"}, b'{"message":"API rate limit exceeded"}', GitHubRateLimitError, "Retry after"),
+        (403, {"X-RateLimit-Remaining": "5"}, b'{"message":"Resource not accessible by integration"}', GitHubPermissionError, "Pull requests permissions"),
+        (429, {"Retry-After": "30"}, b'{"message":"secondary rate limit"}', GitHubRateLimitError, "30 seconds"),
+        (404, {}, b'{"message":"Not Found"}', GitHubAPIError, "not found"),
+    ],
+)
+def test_http_errors_are_classified(
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+    headers: dict[str, str],
+    body: bytes,
+    error_type: type[Exception],
+    message: str,
+) -> None:
+    import repo_fixer.github as github_module
+
+    def denied(*args: Any, **kwargs: Any) -> Any:
+        raise HTTPError(
+            "https://api.github.com/test",
+            status,
+            "error",
+            headers,
+            BytesIO(body),
+        )
+
+    monkeypatch.setattr(github_module, "urlopen", denied)
+    with pytest.raises(error_type, match=message):
+        client()._request("GET", "/test")

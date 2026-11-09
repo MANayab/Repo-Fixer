@@ -6,7 +6,7 @@ import re
 import shutil
 import stat
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -151,8 +151,13 @@ def build_plan(
         if force:
             proposed.append(PlannedFile(readme, content, "Replace weak README", True))
         else:
-            proposed.append(PlannedFile("repo-fixer-proposed-README.md", content,
-                                       "Reviewable alternative; existing README preserved"))
+            proposed.append(
+            PlannedFile(
+                "repo-fixer-proposed-README.md",
+                content,
+                "Reviewable alternative; existing README preserved",
+            )
+        )
     elif "README" in missing:
         created.append(PlannedFile("README.md", _render("README.md.j2", context),
                                    "README missing"))
@@ -177,7 +182,9 @@ def build_plan(
                       "Language-neutral placeholder; language could not be detected")
         elif check_id == "ISSUE_TEMPLATES":
             content = _render("bug_report.yml.j2", context)
-            reason = "Bug report issue template; feature request template is added alongside"
+            reason = (
+                "Bug report issue template; feature request template is added alongside"
+            )
         else:
             content = _render(TEMPLATES[path], context)
             reason = f"{check_id} missing"
@@ -202,12 +209,16 @@ def build_plan(
 
     if "LICENSE" in missing:
         if license_name is None:
-            skipped.append("LICENSE — selection required; choose MIT, Apache-2.0, BSD-3-Clause, or GPL-3.0-only")
+            skipped.append(
+                "LICENSE — selection required; choose MIT, Apache-2.0, "
+                "BSD-3-Clause, or GPL-3.0-only"
+            )
         else:
             if license_name not in LICENSES:
                 raise ValueError(f"Choose one of: {', '.join(LICENSES)}")
-            license_content = _license_text(license_name, datetime.now(timezone.utc).year,
-                                            context["project_name"])
+            license_content = _license_text(
+                license_name, datetime.now(UTC).year, context["project_name"]
+            )
             created.append(PlannedFile("LICENSE", license_content,
                                        f"Explicitly selected {license_name} license"))
     elif "LICENSE" not in missing:
@@ -239,9 +250,11 @@ def apply_plan(plan: FixPlan, *, force: bool = False) -> tuple[list[str], list[s
                 skipped.append(f"{item.path} — existing file preserved")
                 continue
             if target.is_symlink() or not target.is_file():
-                skipped.append(f"{item.path} — not a regular file; refusing replacement")
+                skipped.append(
+                    f"{item.path} — not a regular file; refusing replacement"
+                )
                 continue
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
             backup = target.with_name(f"{target.name}.repo-fixer-backup-{stamp}")
             shutil.copy2(target, backup)
             created.append(str(backup.relative_to(plan.repository)))

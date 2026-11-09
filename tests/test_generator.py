@@ -55,7 +55,9 @@ def test_force_replacement_creates_backup(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Weak", encoding="utf-8")
     plan = build_plan(tmp_path, force=True)
     created, _ = apply_plan(plan, force=True)
-    assert (tmp_path / "README.md").read_text(encoding="utf-8").startswith("<!-- Generated")
+    assert (tmp_path / "README.md").read_text(encoding="utf-8").startswith(
+        "<!-- Generated"
+    )
     backups = list(tmp_path.glob("README.md.repo-fixer-backup-*"))
     assert backups and backups[0].read_text(encoding="utf-8") == "# Weak"
 
@@ -125,9 +127,16 @@ def test_write_never_overwrites_racing_existing_file(tmp_path: Path) -> None:
     assert any("already exists" in message for message in skipped)
 
 
-@pytest.mark.parametrize("license_name", ["MIT", "Apache-2.0", "BSD-3-Clause", "GPL-3.0-only"])
-def test_all_supported_license_texts_are_complete(tmp_path: Path, license_name: str) -> None:
+@pytest.mark.parametrize(
+    "license_name", ["MIT", "Apache-2.0", "BSD-3-Clause", "GPL-3.0-only"]
+)
+def test_all_supported_license_texts_are_complete(
+    tmp_path: Path, license_name: str
+) -> None:
     plan = build_plan(tmp_path, license_name=license_name)
     license_item = next(item for item in plan.created if item.path == "LICENSE")
     assert len(license_item.content) > 1000
-    assert "Copyright" in license_item.content or "copyright" in license_item.content.lower()
+    assert (
+        "Copyright" in license_item.content
+        or "copyright" in license_item.content.lower()
+    )

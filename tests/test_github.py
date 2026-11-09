@@ -225,3 +225,59 @@ def test_http_errors_are_classified(
     monkeypatch.setattr(github_module, "urlopen", denied)
     with pytest.raises(error_type, match=message):
         client()._request("GET", "/test")
+
+
+
+def test_existing_blob_ancestor_blocks_nested_remote_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = client()
+    calls: list[str] = []
+
+    def fake_request(
+        method: str,
+        endpoint: str,
+        payload: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], dict[str, str]]:
+        calls.append(method)
+        if endpoint == "/repos/acme/project":
+            return {"default_branch": "main", "permissions": {"push": True}}, {}
+        if endpoint.endswith("/git/ref/heads/main"):
+            return {"object": {"sha": "base"}}, {}
+        if endpoint.endswith("/git/commits/base"):
+            return {"tree": {"sha": "tree"}}, {}
+        if endpoint.endswith("/git/trees/tree?recursive=1"):
+            return {
+                "truncated": False,
+                "tree": [
+                    {"path": "README.md", "type": "blob", "mode": "100644"}
+                ],
+            }, {}
+        raise AssertionError("No write request should be made")
+
+    monkeypatch.setattr(instance, "_request", fake_request)
+    with pytest.raises(GitHubAPIError, match="README.md"):
+        instance.create_improvement_pr(
+            "acme/project",
+            [{"path": "README.md/extra.txt", "content": "must not replace"}],
+        )
+    assert calls == ["GET", "GET", "GET", "GET"]
+
+
+def test_file_and_child_paths_cannot_be_proposed_together(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance = client()
+    monkeypatch.setattr(
+        instance,
+        "_request",
+        lambda *args, **kwargs: pytest.fail("API must not be called"),
+    )
+    with pytest.raises(ValueError, match="Conflicting proposed"):
+        instance.create_improvement_pr(
+            "acme/project",
+            [
+                {"path": "docs", "content": "file"},
+                {"path": "docs/usage.md", "content": "child"},
+            ],
+        )

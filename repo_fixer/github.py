@@ -196,6 +196,11 @@ class GitHubClient:
             path = _validate_path(item["path"])
             if path in seen:
                 raise ValueError(f"Duplicate proposed path: {path}")
+            for prior in seen:
+                if path.startswith(prior + "/") or prior.startswith(path + "/"):
+                    raise ValueError(
+                        f"Conflicting proposed file and directory paths: {prior}, {path}"
+                    )
             seen.add(path)
             content = item["content"]
             if not isinstance(content, str):
@@ -233,11 +238,23 @@ class GitHubClient:
             raise GitHubAPIError(
                 "Repository tree is too large to verify safely; no branch was created."
             )
-        existing = {entry.get("path") for entry in tree_data.get("tree", [])}
-        conflicts = sorted(seen.intersection(existing))
+        existing = {
+            entry.get("path"): entry
+            for entry in tree_data.get("tree", [])
+            if isinstance(entry.get("path"), str)
+        }
+        conflicts = set(seen.intersection(existing))
+        for path in seen:
+            parts = path.split("/")
+            for index in range(1, len(parts)):
+                ancestor = "/".join(parts[:index])
+                ancestor_entry = existing.get(ancestor)
+                if ancestor_entry and ancestor_entry.get("type") != "tree":
+                    conflicts.add(f"{ancestor} (blocks {path})")
         if conflicts:
             raise GitHubAPIError(
-                "Refusing to overwrite existing repository paths: " + ", ".join(conflicts)
+                "Refusing to overwrite existing repository paths: "
+                + ", ".join(sorted(conflicts))
             )
 
         branch = f"repo-fixer/improvements-{secrets.token_hex(4)}"

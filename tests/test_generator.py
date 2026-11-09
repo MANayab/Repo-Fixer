@@ -1,4 +1,5 @@
 """Safety and behavior tests for local file generation."""
+
 from pathlib import Path
 
 import pytest
@@ -55,8 +56,10 @@ def test_force_replacement_creates_backup(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Weak", encoding="utf-8")
     plan = build_plan(tmp_path, force=True)
     created, _ = apply_plan(plan, force=True)
-    assert (tmp_path / "README.md").read_text(encoding="utf-8").startswith(
-        "<!-- Generated"
+    assert (
+        (tmp_path / "README.md")
+        .read_text(encoding="utf-8")
+        .startswith("<!-- Generated")
     )
     backups = list(tmp_path.glob("README.md.repo-fixer-backup-*"))
     assert backups and backups[0].read_text(encoding="utf-8") == "# Weak"
@@ -79,10 +82,15 @@ def test_unknown_license_fails_closed(tmp_path: Path) -> None:
         build_plan(tmp_path, license_name="UNLICENSED")
 
 
-@pytest.mark.parametrize(("marker", "language"), [
-    ("pyproject.toml", "python"), ("package.json", "node"),
-    ("go.mod", "go"), ("Cargo.toml", "rust"),
-])
+@pytest.mark.parametrize(
+    ("marker", "language"),
+    [
+        ("pyproject.toml", "python"),
+        ("package.json", "node"),
+        ("go.mod", "go"),
+        ("Cargo.toml", "rust"),
+    ],
+)
 def test_language_detection(tmp_path: Path, marker: str, language: str) -> None:
     (tmp_path / marker).write_text("", encoding="utf-8")
     assert detect_language(tmp_path) == language
@@ -121,6 +129,7 @@ def test_write_never_overwrites_racing_existing_file(tmp_path: Path) -> None:
     item = next(item for item in plan.created if item.path == "README.md")
     (tmp_path / "README.md").write_text("raced", encoding="utf-8")
     from repo_fixer.generator import FixPlan
+
     only = FixPlan(tmp_path, (item,), (), (), ())
     _, skipped = apply_plan(only)
     assert (tmp_path / "README.md").read_text(encoding="utf-8") == "raced"

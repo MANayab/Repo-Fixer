@@ -86,7 +86,8 @@ def test_force_requires_explicit_confirmation_even_with_yes(tmp_path) -> None:
     readme = tmp_path / "README.md"
     readme.write_text("# Weak", encoding="utf-8")
     result = CliRunner().invoke(
-        main, ["fix", "--force", "--yes", "--license", "MIT", "--path", str(tmp_path)],
+        main,
+        ["fix", "--force", "--yes", "--license", "MIT", "--path", str(tmp_path)],
         input="n\\n",
     )
     assert result.exit_code == 0

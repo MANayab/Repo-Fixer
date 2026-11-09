@@ -1,5 +1,6 @@
 """Safe, local-only generation of repository starter files."""
 
+
 # No network, GitHub API, or subprocess integration is used by this module.
 from __future__ import annotations
 
@@ -41,12 +42,14 @@ WORKFLOWS = {
     "rust": "ci-rust.yml.j2",
 }
 
+
 @dataclass(frozen=True)
 class PlannedFile:
     path: str
     content: str
     reason: str
     replace: bool = False
+
 
 @dataclass(frozen=True)
 class FixPlan:
@@ -60,15 +63,21 @@ class FixPlan:
     def empty(self) -> bool:
         return not (self.created or self.proposed)
 
+
 def detect_language(root: Path) -> str:
     """Detect the primary project language from well-known manifest files."""
     markers = (
-        ("pyproject.toml", "python"), ("requirements.txt", "python"),
-        ("setup.py", "python"), ("package.json", "node"),
-        ("go.mod", "go"), ("Cargo.toml", "rust"),
+        ("pyproject.toml", "python"),
+        ("requirements.txt", "python"),
+        ("setup.py", "python"),
+        ("package.json", "node"),
+        ("go.mod", "go"),
+        ("Cargo.toml", "rust"),
     )
     found = [language for marker, language in markers if _regular_file(root, marker)]
     return found[0] if found else "unknown"
+
+
 
 def _regular_file(root: Path, relative: str) -> bool:
     path = root / relative
@@ -79,6 +88,8 @@ def _regular_file(root: Path, relative: str) -> bool:
         return True
     except (OSError, RuntimeError, ValueError):
         return False
+
+
 
 def _safe_target(root: Path, relative: str) -> Path:
     """Validate every existing path component and keep writes inside root."""
@@ -96,6 +107,8 @@ def _safe_target(root: Path, relative: str) -> Path:
         raise ValueError(f"Generated path escapes repository: {relative}") from exc
     return target
 
+
+
 def _context(root: Path, language: str, license_name: str | None) -> dict[str, Any]:
     name = re.sub(r"[^A-Za-z0-9._ -]", "", root.name).strip() or "Project"
     return {
@@ -105,26 +118,36 @@ def _context(root: Path, language: str, license_name: str | None) -> dict[str, A
         "attribution": ATTRIBUTION,
     }
 
+
+
 def _render(template_name: str, context: dict[str, Any]) -> str:
     """Render packaged templates in a sandbox with strict undefined values."""
     from importlib.resources import files
+
     template_path = files("repo_fixer").joinpath("templates", template_name)
     source = template_path.read_text(encoding="utf-8")
     env = SandboxedEnvironment(undefined=StrictUndefined, autoescape=False)
     env.globals.clear()
     return env.from_string(source).render(context).rstrip() + "\n"
 
+
+
 def _license_text(name: str, year: int, holder: str) -> str:
     """Load a complete canonical SPDX license text from packaged resources."""
     from importlib.resources import files
+
     if name not in LICENSES:
         raise ValueError(f"Choose one of: {', '.join(LICENSES)}")
     text = files("repo_fixer").joinpath("licenses", name).read_text(encoding="utf-8")
-    return (text.replace("<year>", str(year))
-                .replace("<owner>", holder)
-                .replace("<copyright holders>", holder)
-                .replace("[yyyy]", str(year))
-                .replace("[name of copyright owner]", holder))
+    return (
+        text.replace("<year>", str(year))
+        .replace("<owner>", holder)
+        .replace("<copyright holders>", holder)
+        .replace("[yyyy]", str(year))
+        .replace("[name of copyright owner]", holder)
+    )
+
+
 
 def build_plan(
     repository: Path | str = ".",
@@ -146,23 +169,30 @@ def build_plan(
     unchanged: list[str] = []
     missing = {finding.check_id for finding in report.findings}
 
-    readme = next((p for p in ("README.md", "README.rst", "README.txt", "README")
-                   if _regular_file(root, p)), None)
+    readme = next(
+        (
+            p
+            for p in ("README.md", "README.rst", "README.txt", "README")
+            if _regular_file(root, p)
+        ),
+        None,
+    )
     if "README" in missing and readme:
         content = _render("README.md.j2", context)
         if force:
             proposed.append(PlannedFile(readme, content, "Replace weak README", True))
         else:
             proposed.append(
-            PlannedFile(
-                "repo-fixer-proposed-README.md",
-                content,
-                "Reviewable alternative; existing README preserved",
+                PlannedFile(
+                    "repo-fixer-proposed-README.md",
+                    content,
+                    "Reviewable alternative; existing README preserved",
+                )
             )
-        )
     elif "README" in missing:
-        created.append(PlannedFile("README.md", _render("README.md.j2", context),
-                                   "README missing"))
+        created.append(
+            PlannedFile("README.md", _render("README.md.j2", context), "README missing")
+        )
 
     check_to_path = {
         "CONTRIBUTING": "CONTRIBUTING.md",
@@ -178,10 +208,16 @@ def build_plan(
             continue
         if check_id == "CI":
             template = WORKFLOWS.get(language)
-            content = (_render(template, context) if template else
-                       _render("ci-unknown.yml.j2", context))
-            reason = (f"{language} workflow" if template else
-                      "Language-neutral placeholder; language could not be detected")
+            content = (
+                _render(template, context)
+                if template
+                else _render("ci-unknown.yml.j2", context)
+            )
+            reason = (
+                f"{language} workflow"
+                if template
+                else "Language-neutral placeholder; language could not be detected"
+            )
         elif check_id == "ISSUE_TEMPLATES":
             content = _render("bug_report.yml.j2", context)
             reason = (
@@ -192,22 +228,31 @@ def build_plan(
             reason = f"{check_id} missing"
         created.append(PlannedFile(path, content, reason))
         if check_id == "ISSUE_TEMPLATES":
-            created.append(PlannedFile(
-                ".github/ISSUE_TEMPLATE/feature_request.yml",
-                _render("feature_request.yml.j2", context),
-                "Feature request issue template",
-            ))
+            created.append(
+                PlannedFile(
+                    ".github/ISSUE_TEMPLATE/feature_request.yml",
+                    _render("feature_request.yml.j2", context),
+                    "Feature request issue template",
+                )
+            )
 
     if "GITIGNORE" in missing:
         template = GITIGNORES.get(language)
         if template:
-            created.append(PlannedFile(".gitignore", _render(template, context),
-                                       f"{language} ignore rules"))
+            created.append(
+                PlannedFile(
+                    ".gitignore", _render(template, context), f"{language} ignore rules"
+                )
+            )
         else:
-            created.append(PlannedFile(".gitignore",
-                "# Generated by Repo Fixer. Review and customize before using.\n"
-                "# Add language-specific build output, caches, and local secrets.\n",
-                "Language-neutral ignore placeholder"))
+            created.append(
+                PlannedFile(
+                    ".gitignore",
+                    "# Generated by Repo Fixer. Review and customize before using.\n"
+                    "# Add language-specific build output, caches, and local secrets.\n",
+                    "Language-neutral ignore placeholder",
+                )
+            )
 
     if "LICENSE" in missing:
         if license_name is None:
@@ -221,8 +266,13 @@ def build_plan(
             license_content = _license_text(
                 license_name, datetime.now(UTC).year, context["project_name"]
             )
-            created.append(PlannedFile("LICENSE", license_content,
-                                       f"Explicitly selected {license_name} license"))
+            created.append(
+                PlannedFile(
+                    "LICENSE",
+                    license_content,
+                    f"Explicitly selected {license_name} license",
+                )
+            )
     elif "LICENSE" not in missing:
         unchanged.append("LICENSE — already present")
 
@@ -238,8 +288,11 @@ def build_plan(
         _safe_target(root, item.path)
         if (root / item.path).exists() and not item.replace:
             skipped.append(f"{item.path} — proposed file already exists")
-    return FixPlan(root, tuple(safe_created), tuple(proposed), tuple(skipped),
-                   tuple(unchanged))
+    return FixPlan(
+        root, tuple(safe_created), tuple(proposed), tuple(skipped), tuple(unchanged)
+    )
+
+
 
 def apply_plan(plan: FixPlan, *, force: bool = False) -> tuple[list[str], list[str]]:
     """Write only validated targets; force replacements are backed up first."""
@@ -266,8 +319,11 @@ def apply_plan(plan: FixPlan, *, force: bool = False) -> tuple[list[str], list[s
         if item.replace:
             flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
         flags |= getattr(os, "O_NOFOLLOW", 0)
-        descriptor = os.open(target, flags, stat.S_IWUSR | stat.S_IRUSR |
-                             stat.S_IWGRP | stat.S_IRGRP | stat.S_IROTH)
+        descriptor = os.open(
+            target,
+            flags,
+            stat.S_IWUSR | stat.S_IRUSR | stat.S_IWGRP | stat.S_IRGRP | stat.S_IROTH,
+        )
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(item.content)
         created.append(item.path)

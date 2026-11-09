@@ -1,5 +1,6 @@
 """Command-line interface for Repo Fixer."""
 
+
 # File writes are delegated to the confirmation-gated local generator.
 import json
 from pathlib import Path
@@ -56,8 +57,13 @@ def scan(ctx: click.Context, repository: Path, output_format: str) -> None:
 @click.argument(
     "repository", type=click.Path(path_type=Path, file_okay=False), default="."
 )
-@click.option("--format", "output_format", type=click.Choice(["text", "json"]),
-              default="text", show_default=True)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+)
 @click.pass_context
 def score(ctx: click.Context, repository: Path, output_format: str) -> None:
     """Calculate an explainable repository readiness score."""
@@ -65,8 +71,10 @@ def score(ctx: click.Context, repository: Path, output_format: str) -> None:
     report = _run_audit(repository)
     if output_format == "json":
         payload = {
-            "repository": report.repository, "score": report.score,
-            "grade": report.grade, "checks_passed": report.checks_passed,
+            "repository": report.repository,
+            "score": report.score,
+            "grade": report.grade,
+            "checks_passed": report.checks_passed,
             "checks_total": report.checks_total,
         }
         click.echo(json.dumps(payload, indent=2))
@@ -97,17 +105,31 @@ def score(ctx: click.Context, repository: Path, output_format: str) -> None:
     is_flag=True,
     help="Allow replacing a weak README after explicit confirmation.",
 )
-@click.option("--license", "license_name", type=click.Choice(LICENSES),
-              help="Explicit license choice when LICENSE is missing.")
+@click.option(
+    "--license",
+    "license_name",
+    type=click.Choice(LICENSES),
+    help="Explicit license choice when LICENSE is missing.",
+)
 @click.pass_context
-def fix(ctx: click.Context, dry_run: bool, repository: Path, yes: bool,
-        force: bool, license_name: str | None) -> None:
+def fix(
+    ctx: click.Context,
+    dry_run: bool,
+    repository: Path,
+    yes: bool,
+    force: bool,
+    license_name: str | None,
+) -> None:
     """Preview and safely generate missing project files locally."""
     _validate_config(ctx.obj)
     try:
         plan = build_plan(repository, license_name=license_name, force=force)
-        if not dry_run and license_name is None and any(
-            item.startswith("LICENSE — selection required") for item in plan.skipped
+        if (
+            not dry_run
+            and license_name is None
+            and any(
+                item.startswith("LICENSE — selection required") for item in plan.skipped
+            )
         ):
             if not click.get_text_stream("stdin").isatty():
                 click.echo(

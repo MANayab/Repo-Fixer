@@ -119,6 +119,10 @@ class GitHubClient:
     def from_environment(cls) -> GitHubClient:
         return cls(os.environ.get("GITHUB_TOKEN", ""))
 
+    def _redact(self, value: object) -> str:
+        """Remove the configured token from error text before it reaches callers."""
+        return str(value).replace(self._token, "[REDACTED]")
+
     def _request(
         self, method: str, endpoint: str, payload: dict[str, Any] | None = None
     ) -> tuple[dict[str, Any], dict[str, str]]:
@@ -171,11 +175,17 @@ class GitHubClient:
                 raise GitHubAPIError(
                     "GitHub resource not found. Check repository access and branch names."
                 ) from exc
-            raise GitHubAPIError(f"GitHub API returned HTTP {exc.code}: {detail}") from exc
+            raise GitHubAPIError(
+                f"GitHub API returned HTTP {exc.code}: {self._redact(detail)}"
+            ) from exc
         except URLError as exc:
-            raise GitHubAPIError(f"Could not reach GitHub: {exc.reason}") from exc
+            raise GitHubAPIError(
+                f"Could not reach GitHub: {self._redact(exc.reason)}"
+            ) from exc
         except (TimeoutError, OSError) as exc:
-            raise GitHubAPIError(f"GitHub request failed: {exc}") from exc
+            raise GitHubAPIError(
+                f"GitHub request failed: {self._redact(exc)}"
+            ) from exc
 
     def create_improvement_pr(
         self,

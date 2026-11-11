@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from repo_fixer import cli as cli_module
 from repo_fixer.cli import _github_repository_name, main
 from repo_fixer.github import GitHubAPIError, GitHubClient, PullRequestResult
 
@@ -64,12 +65,13 @@ def test_create_pr_uses_mock_client_and_does_not_write_local_files(
 ) -> None:
     fake = FakeGitHubClient()
     monkeypatch.setenv("GITHUB_REPOSITORY", "acme/project")
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: True)
     monkeypatch.setattr(
         GitHubClient,
         "from_environment",
         classmethod(lambda cls: fake),
     )
-    result = invoke_create_pr(tmp_path, extra=["--yes"])
+    result = invoke_create_pr(tmp_path, extra=["--yes"], input_text="y\n")
     assert result.exit_code == 0, result.output
     assert "https://github.com/acme/project/pull/12" in result.output
     assert "No merge was performed" in result.output
@@ -88,6 +90,7 @@ def test_create_pr_confirmation_can_be_declined(
         GitHubClient,
         "from_environment",
         classmethod(lambda cls: pytest.fail("Client must not be created")),
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: True)
     )
     result = invoke_create_pr(tmp_path, input_text="n\n")
     assert result.exit_code == 0
@@ -121,7 +124,8 @@ def test_create_pr_reports_missing_token(
 ) -> None:
     monkeypatch.setenv("GITHUB_REPOSITORY", "acme/project")
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    result = invoke_create_pr(tmp_path, extra=["--yes"])
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: True)
+    result = invoke_create_pr(tmp_path, extra=["--yes"], input_text="y\n")
     assert result.exit_code != 0
     assert "GITHUB_TOKEN" in result.output
 
@@ -132,14 +136,56 @@ def test_create_pr_reports_api_errors(
 ) -> None:
     fake = FakeGitHubClient(GitHubAPIError("mock API failure"))
     monkeypatch.setenv("GITHUB_REPOSITORY", "acme/project")
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: True)
     monkeypatch.setattr(
         GitHubClient,
         "from_environment",
         classmethod(lambda cls: fake),
     )
-    result = invoke_create_pr(tmp_path, extra=["--yes"])
+    result = invoke_create_pr(tmp_path, extra=["--yes"], input_text="y\n")
     assert result.exit_code != 0
     assert "mock API failure" in result.output
+
+
+def test_create_pr_yes_still_requires_explicit_confirmation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = FakeGitHubClient()
+    monkeypatch.setenv("GITHUB_REPOSITORY", "acme/project")
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: True)
+    monkeypatch.setattr(
+        GitHubClient, "from_environment", classmethod(lambda cls: fake)
+    )
+    result = invoke_create_pr(tmp_path, extra=["--yes"], input_text="n\n")
+    assert result.exit_code == 0
+    assert "Cancelled. No GitHub changes were made." in result.output
+    assert fake.calls == []
+
+
+def test_create_pr_noninteractive_fails_without_remote_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GITHUB_REPOSITORY", "acme/project")
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: False)
+    monkeypatch.setattr(
+        GitHubClient,
+        "from_environment",
+        classmethod(lambda cls: pytest.fail("Client must not be created")),
+    )
+    result = invoke_create_pr(tmp_path, extra=["--yes"])
+    assert result.exit_code != 0
+    assert "without interactive confirmation" in result.output
+
+
+def test_local_fix_does_not_require_github_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    result = CliRunner().invoke(
+        main, ["fix", "--yes", "--license", "MIT", "--path", str(tmp_path)]
+    )
+    assert result.exit_code == 0
+    assert (tmp_path / "README.md").is_file()
 
 
 @pytest.mark.parametrize(

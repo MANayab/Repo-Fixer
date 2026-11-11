@@ -4,13 +4,14 @@
 import configparser
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import click
 
-from repo_fixer.config import load_config
+from repo_fixer.config import RepoFixerConfig, load_config
 from repo_fixer.constants import CONFIG_FILENAME, DEFAULT_CONFIG, __version__
 from repo_fixer.generator import LICENSES, apply_plan, build_plan
 from repo_fixer.github import GitHubClient, GitHubError
@@ -132,22 +133,29 @@ def fix(
     create_pr: bool,
 ) -> None:
     """Preview and safely generate missing project files locally or by PR."""
-    _validate_config(ctx.obj)
+    config = _validate_config(ctx.obj)
     if create_pr and force:
         raise click.ClickException(
             "--force cannot be used with --create-pr; remote PR generation "
             "never replaces files."
         )
     try:
-        plan = build_plan(repository, license_name=license_name, force=force)
+        plan = build_plan(
+            repository,
+            license_name=license_name,
+            force=force,
+            generate=config.generate,
+        )
         if (
             not dry_run
             and license_name is None
             and any(
-                item.startswith("LICENSE — selection required") for item in plan.skipped
-            )
+item.startswith(
+    "LICENSE â€” selection required"
+)
+for item in plan.skipped            )
         ):
-            if not click.get_text_stream("stdin").isatty():  # type: ignore[operator]
+            if not _stdin_isatty():
                 click.echo(
                     "LICENSE not generated: choose one with --license.", err=True
                 )
@@ -155,7 +163,12 @@ def fix(
                 license_name = click.prompt(
                     "Choose a license", type=click.Choice(LICENSES), show_choices=True
                 )
-                plan = build_plan(repository, license_name=license_name, force=force)
+                plan = build_plan(
+                    repository,
+                    license_name=license_name,
+                    force=force,
+                    generate=config.generate,
+                )
     except (OSError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
 
@@ -178,7 +191,12 @@ def fix(
             if not files:
                 click.echo("No additions are available for a pull request.")
                 return
-            if not yes and not click.confirm(
+            if not _stdin_isatty():
+                raise click.ClickException(
+                    "Refusing GitHub pull-request creation "
+        "without interactive confirmation."
+                )
+            if not click.confirm(
                 f"Create one GitHub pull request with {len(files)} new file(s)?",
                 default=False,
             ):
@@ -323,15 +341,27 @@ def _render_report(report: AuditReport, output_format: str) -> None:
     click.echo("\nFindings:")
     for item in report.findings:
         click.echo(
-            f"- [{item.severity.upper()}] {item.check_id} — {item.affected_file}"
+            f"- [{item.severity.upper()}] {item.check_id} Ã¢â‚¬â€ {item.affected_file}"
         )
         click.echo(f"  Evidence: {item.evidence}")
         click.echo(f"  Recommendation: {item.recommendation}")
 
 
-def _validate_config(context: dict[str, Any]) -> None:
-    """Validate the selected config before a command proceeds."""
+def _stdin_isatty() -> bool:
+    """Return whether standard input is interactive without Click's deprecated API."""
+    stdin = getattr(sys, "stdin", None)
+    isatty = getattr(stdin, "isatty", None)
+    if not callable(isatty):
+        return False
     try:
-        load_config(context["config"])
+        return bool(isatty())
+    except OSError:
+        return False
+
+
+def _validate_config(context: dict[str, Any]) -> RepoFixerConfig:
+    """Validate and return the selected config before a command proceeds."""
+    try:
+        return load_config(context["config"])
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc

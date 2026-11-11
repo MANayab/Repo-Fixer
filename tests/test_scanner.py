@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from repo_fixer.cli import main
-from repo_fixer.scanner import audit_repository
+from repo_fixer.scanner import _read, audit_repository
 
 
 def make_complete_repo(root):
@@ -71,7 +71,7 @@ def test_readme_quality_gaps_are_explained(tmp_path):
     assert finding.recommendation
 
 
-def test_symlinked_license_does_not_count(tmp_path):
+def test_symlinked_license_does_not_count(tmp_path, symlink_supported: bool):
     outside = tmp_path.parent / "outside-license"
     outside.write_text("MIT", encoding="utf-8")
     (tmp_path / "LICENSE").symlink_to(outside)
@@ -111,3 +111,12 @@ def test_scan_rejects_file_path(tmp_path):
     file_path.write_text("x", encoding="utf-8")
     result = CliRunner().invoke(main, ["scan", str(file_path)])
     assert result.exit_code != 0
+
+
+def test_read_missing_file_returns_none(tmp_path) -> None:
+    assert _read(tmp_path, "missing.txt") is None
+
+
+def test_read_invalid_utf8_returns_none(tmp_path) -> None:
+    (tmp_path / "README.md").write_bytes(b"\xff\xfe")
+    assert _read(tmp_path, "README.md") is None

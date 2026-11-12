@@ -1,6 +1,6 @@
 """Shared project constants."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.1"
 CONFIG_FILENAME = "repo-fixer.yml"
 DEFAULT_CONFIG = """license: MIT
 project_name: My Project

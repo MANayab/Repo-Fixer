@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo-fixer"
-version = "0.2.0"
+version = "0.3.1"
 description = "Make any GitHub repository contributor-ready in minutes."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "MANayab" }]
-classifiers = ["Development Status :: 3 - Alpha", "Environment :: Console", "Intended Audience :: Developers", "License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Topic :: Software Development :: Quality Assurance"]
+classifiers = ["Development Status :: 3 - Alpha", "Environment :: Console", "Intended Audience :: Developers", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Topic :: Software Development :: Quality Assurance"]
 dependencies = ["click>=8.1,<9", "pydantic>=2.7,<3", "PyYAML>=6,<7", "Jinja2>=3.1,<4"]
 
 [project.scripts]
@@ -48,4 +48,5 @@ source = ["repo_fixer"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 85
+precision = 2
+fail_under = 90

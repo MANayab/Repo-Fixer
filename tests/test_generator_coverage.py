@@ -28,7 +28,9 @@ def test_detect_language_prefers_python_marker_order(tmp_path: Path) -> None:
     assert detect_language(tmp_path) == "python"
 
 
-def test_detect_language_ignores_symlink_marker(tmp_path: Path) -> None:
+def test_detect_language_ignores_symlink_marker(
+    tmp_path: Path, symlink_supported: bool
+) -> None:
     outside = tmp_path.parent / "outside-package.json"
     outside.write_text("{}", encoding="utf-8")
     (tmp_path / "package.json").symlink_to(outside)
@@ -48,7 +50,9 @@ def test_safe_target_rejects_unsafe_relative_paths(
         _safe_target(tmp_path, relative)
 
 
-def test_safe_target_rejects_symlink_component(tmp_path: Path) -> None:
+def test_safe_target_rejects_symlink_component(
+    tmp_path: Path, symlink_supported: bool
+) -> None:
     outside = tmp_path.parent / "repo-fixer-outside-target"
     outside.mkdir(exist_ok=True)
     (tmp_path / "nested").symlink_to(outside, target_is_directory=True)

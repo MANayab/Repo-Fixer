@@ -32,12 +32,17 @@ repo-fixer fix --path ./my-project
 repo-fixer fix --yes
 repo-fixer fix --license MIT
 repo-fixer fix --force
-repo-fixer fix --create-pr --license MIT
+repo-fixer fix --create-pr --license MIT  # confirms remote action separately
 ```
+
+
+## Configuration
+
+`repo-fixer.yml` controls generation categories under `generate.*`. Command-line options such as `--license` keep their existing explicit precedence, while a `generate.<category>: false` setting prevents that category from being added to the plan in both dry-run and apply modes.
 
 ## Safe file generation
 
-`fix --dry-run` previews planned changes without changing files. A normal `fix` asks before creating files. `--yes` skips that prompt only for new files. Existing files are skipped; a weak README is proposed separately. Replacing a README locally requires `--force`, explicit confirmation, and a timestamped backup.
+`fix --dry-run` previews planned changes without changing files. A normal `fix` asks before creating files. `--yes` skips that prompt only for local new-file creation. GitHub pull-request creation always requires a separate explicit interactive confirmation. Existing files are skipped; a weak README is proposed separately. Replacing a README locally requires `--force`, explicit confirmation, and a timestamped backup.
 
 A missing LICENSE is never selected automatically. Choose one explicitly with `--license` or the interactive prompt. Repo Fixer never deletes files or writes outside the selected repository root.
 
@@ -47,7 +52,7 @@ Set `GITHUB_TOKEN` to a fine-grained token limited to the target repository with
 
 ```powershell
 $env:GITHUB_TOKEN = "github_pat_..."
-repo-fixer fix --create-pr --license MIT
+repo-fixer fix --create-pr --license MIT  # confirms remote action separately
 ```
 
 The command creates a unique feature branch, commits additions only, and opens one pull request to the repository's default branch. It checks remote paths before writing and refuses to overwrite any existing path. It never pushes to the default branch, force-pushes, deletes files, or merges automatically. Review all generated content before merging.

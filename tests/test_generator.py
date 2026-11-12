@@ -102,7 +102,7 @@ def test_unknown_language_uses_neutral_workflow(tmp_path: Path) -> None:
     assert "Language-neutral placeholder" in workflow.content
 
 
-def test_symlink_target_is_rejected(tmp_path: Path) -> None:
+def test_symlink_target_is_rejected(tmp_path: Path, symlink_supported: bool) -> None:
     outside = tmp_path.parent / "outside-repo-fixer"
     outside.mkdir(exist_ok=True)
     (tmp_path / ".github").symlink_to(outside, target_is_directory=True)

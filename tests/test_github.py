@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from typing import Any
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -281,3 +281,37 @@ def test_file_and_child_paths_cannot_be_proposed_together(
                 {"path": "docs/usage.md", "content": "child"},
             ],
         )
+
+
+def test_http_500_is_classified_without_leaking_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = "ghp_UNMISTAKABLE_TEST_TOKEN_1234567890"
+
+    def failing(*args: Any, **kwargs: Any) -> Any:
+        raise HTTPError(
+            "https://api.github.com/test",
+            500,
+            "error",
+            {},
+            BytesIO(f'{{"message":"failure {token}"}}'.encode()),
+        )
+
+    monkeypatch.setattr(github_module, "urlopen", failing)
+    instance = GitHubClient(token)
+    with pytest.raises(GitHubAPIError) as exc_info:
+        instance._request("GET", "/test")
+    assert token not in str(exc_info.value)
+    assert "[REDACTED]" in str(exc_info.value)
+
+
+def test_network_error_is_classified_without_leaking_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = "ghp_UNMISTAKABLE_TEST_TOKEN_1234567890"
+
+    def failing(*args: Any, **kwargs: Any) -> Any:
+        raise URLError(f"network failure {token}")
+
+    monkeypatch.setattr(github_module, "urlopen", failing)
+    instance = GitHubClient(token)
+    with pytest.raises(GitHubAPIError) as exc_info:
+        instance._request("GET", "/test")
+    assert token not in str(exc_info.value)
+    assert "Could not reach GitHub" in str(exc_info.value)

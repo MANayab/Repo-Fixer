@@ -9,11 +9,13 @@ import pytest
 from click.testing import CliRunner
 
 from repo_fixer import __version__
+from repo_fixer import cli as cli_module
 from repo_fixer.cli import main
+from repo_fixer.generator import FixPlan
 
 
 def test_package_imports_with_version() -> None:
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.3.1"
 
 
 def test_help_lists_commands() -> None:
@@ -172,4 +174,71 @@ def test_python_module_entrypoint_runs(monkeypatch, capsys) -> None:
     with pytest.raises(SystemExit) as error:
         runpy.run_module("repo_fixer", run_name="__main__")
     assert error.value.code == 0
-    assert "Repo Fixer 0.2.0" in capsys.readouterr().out
+    assert "Repo Fixer 0.3.1" in capsys.readouterr().out
+
+
+def test_fix_empty_plan_returns_without_prompt_or_writes(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = FixPlan(tmp_path, (), (), (), ())
+    monkeypatch.setattr(cli_module, "build_plan", lambda *args, **kwargs: plan)
+    monkeypatch.setattr(
+        cli_module, "apply_plan", lambda *args, **kwargs: pytest.fail("must not write")
+    )
+    monkeypatch.setattr(
+        cli_module.click,
+        "confirm",
+        lambda *args, **kwargs: pytest.fail("must not prompt"),
+    )
+    result = CliRunner().invoke(main, ["fix", "--path", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "No files need to be generated." in result.output
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_fix_uses_generate_configuration_for_dry_run_and_apply(tmp_path) -> None:
+    config = tmp_path / "repo-fixer.yml"
+    config.write_text(
+        "generate:\n"
+        "  readme: false\n"
+        "  license: false\n"
+        "  contributing: false\n"
+        "  code_of_conduct: false\n"
+        "  issue_templates: false\n"
+        "  pull_request_template: false\n"
+        "  ci: false\n"
+        "  changelog: false\n"
+        "  gitignore: false\n",
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+    dry = runner.invoke(
+        main, ["--config", str(config), "fix", "--dry-run", "--path", str(tmp_path)]
+    )
+    apply = runner.invoke(
+        main, ["--config", str(config), "fix", "--yes", "--path", str(tmp_path)]
+    )
+    assert dry.exit_code == 0
+    assert apply.exit_code == 0
+    assert "Would create:" not in dry.output
+    assert "No files need to be generated." in apply.output
+    assert list(tmp_path.iterdir()) == [config]
+
+
+def test_stdin_isatty_handles_interactive_noninteractive_and_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Interactive:
+        def isatty(self) -> bool:
+            return True
+
+    class NonInteractive:
+        def isatty(self) -> bool:
+            return False
+
+    monkeypatch.setattr(cli_module.sys, "stdin", Interactive())
+    assert cli_module._stdin_isatty() is True
+    monkeypatch.setattr(cli_module.sys, "stdin", NonInteractive())
+    assert cli_module._stdin_isatty() is False
+    monkeypatch.setattr(cli_module.sys, "stdin", None)
+    assert cli_module._stdin_isatty() is False

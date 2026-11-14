@@ -26,7 +26,6 @@ from pip._vendor.packaging.version import InvalidVersion, Version
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_FILE = REPOSITORY_ROOT / "pyproject.toml"
-PROJECT_NAME = "repo-fixer"
 MINIMUM_SETUPTOOLS = Version("68")
 RUN_TIMEOUT_SECONDS = 600
 
@@ -121,9 +120,20 @@ def validate_sdist_artifact(
     sdist_path = Path(sdist_path)
     try:
         with tarfile.open(sdist_path, mode="r:*") as archive:
+            all_members = archive.getmembers()
+            for member in all_members:
+                if member.isfile():
+                    member_stream = archive.extractfile(member)
+                    if member_stream is None:
+                        raise VerificationError(
+                            f"{sdist_path}: unreadable tar member {member.name!r}"
+                        )
+                    with member_stream:
+                        while member_stream.read(1024 * 1024):
+                            pass
             members = [
                 member
-                for member in archive.getmembers()
+                for member in all_members
                 if member.isfile() and Path(member.name).name == "PKG-INFO"
             ]
             if len(members) != 1:

@@ -25,7 +25,10 @@ def make_wheel(
     path: Path, name: str, version: str, *, filename: str | None = None
 ) -> Path:
     path.mkdir(parents=True, exist_ok=True)
-    wheel_path = path / (filename or f"{name}-{version}-py3-none-any.whl")
+    wheel_distribution = name.replace("-", "_")
+    wheel_path = path / (
+        filename or f"{wheel_distribution}-{version}-py3-none-any.whl"
+    )
     dist_info = f"{name.replace('-', '_')}-{version}.dist-info"
     metadata = (
         "Metadata-Version: 2.1\n"

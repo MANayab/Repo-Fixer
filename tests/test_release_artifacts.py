@@ -107,7 +107,7 @@ def test_invalid_existing_artifact_is_rejected_without_replacement(
     artifact = tmp_path / "repo_fixer-0.3.1-py3-none-any.whl"
     original = b"invalid existing artifact"
     artifact.write_bytes(original)
-    with pytest.raises(verifier.VerificationError):
+    with pytest.raises(verifier.VerificationError, match=str(artifact)):
         verifier.validate_existing_artifacts(tmp_path, "repo-fixer", "0.3.1")
     assert artifact.read_bytes() == original
 
@@ -272,6 +272,21 @@ def test_no_index_requires_a_wheelhouse() -> None:
         (Path("local-wheels"), False, ["--find-links", "local-wheels"]),
         (Path("local-wheels"), True, ["--no-index", "--find-links", "local-wheels"]),
     ],
+    ids=["normal-indexes-allowed", "wheelhouse-indexes-allowed", "offline"],
+)
+def test_build_and_install_share_exact_index_flags(
+    wheelhouse: Path | None, no_index: bool, expected_flags: list[str]
+) -> None:
+    assert verifier.pip_index_arguments(wheelhouse, no_index) == expected_flags
+
+
+@pytest.mark.parametrize(
+    ("wheelhouse", "no_index", "expected_flags"),
+    [
+        (None, False, []),
+        (Path("local-wheels"), False, ["--find-links", "local-wheels"]),
+        (Path("local-wheels"), True, ["--no-index", "--find-links", "local-wheels"]),
+    ],
 )
 def test_install_and_smoke_runs_real_flow_with_mocked_subprocess(
     tmp_path: Path,
@@ -313,6 +328,68 @@ def test_install_and_smoke_runs_real_flow_with_mocked_subprocess(
     ]
     assert calls[2][0] == str(verifier.venv_python(Path(calls[0][4])))
     assert calls[2][1:3] == ["-m", "repo_fixer"]
+
+
+@pytest.mark.parametrize("fail_on_call", [None, 2], ids=["success", "failure"])
+def test_install_workspace_and_smoke_project_are_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fail_on_call: int | None
+) -> None:
+    original_workspace = verifier.temporary_workspace
+    recorded: list[Path] = []
+    call_number = 0
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def recording_workspace(checkout: Path, artifacts_dir: Path):
+        with original_workspace(checkout, artifacts_dir) as workspace:
+            recorded.append(workspace)
+            yield workspace
+
+    def fake_run(command: list[str], **kwargs: Any) -> Any:
+        nonlocal call_number
+        call_number += 1
+        if call_number == 1:
+            Path(command[3]).mkdir()
+        status = 1 if call_number == fail_on_call else 0
+        return type(
+            "Completed",
+            (),
+            {"returncode": status, "stdout": "", "stderr": "expected failure"},
+        )()
+
+    monkeypatch.setattr(verifier, "temporary_workspace", recording_workspace)
+    monkeypatch.setattr(verifier.subprocess, "run", fake_run)
+    checkout = tmp_path / "checkout"
+    artifacts = tmp_path / "dist"
+    checkout.mkdir()
+    artifacts.mkdir()
+    artifact = tmp_path / "candidate.whl"
+    artifact.write_bytes(b"candidate")
+
+    if fail_on_call is None:
+        verifier.install_and_smoke(
+            artifact,
+            checkout=checkout,
+            artifacts_dir=artifacts,
+            wheelhouse=None,
+            no_index=False,
+        )
+    else:
+        with pytest.raises(verifier.VerificationError, match="status 1"):
+            verifier.install_and_smoke(
+                artifact,
+                checkout=checkout,
+                artifacts_dir=artifacts,
+                wheelhouse=None,
+                no_index=False,
+            )
+
+    assert len(recorded) == 1
+    workspace = recorded[0]
+    assert not workspace.exists()
+    assert not (workspace / "venv").exists()
+    assert not (workspace / "smoke-project").exists()
 
 
 def test_build_refuses_nonempty_artifact_directory(tmp_path: Path) -> None:

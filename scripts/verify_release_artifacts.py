@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
-import re
 import subprocess
 import sys
 import tarfile
@@ -163,7 +162,7 @@ def validate_existing_artifacts(
         path
         for path in artifact_dir.iterdir()
         if path.is_file()
-        and (path.name.endswith(".tar.gz") or path.name.endswith(".zip"))
+        and path.name.endswith(".tar.gz")
     )
     if len(wheels) != 1 or len(sdists) != 1:
         existing = [*wheels, *sdists]

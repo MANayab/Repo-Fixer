@@ -16,10 +16,10 @@ import tarfile
 import tempfile
 import tomllib
 import zipfile
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from email.parser import Parser
 from pathlib import Path
-from typing import Iterator, Sequence
 
 from pip._vendor.packaging.utils import canonicalize_name, parse_wheel_filename
 from pip._vendor.packaging.version import InvalidVersion, Version
@@ -395,7 +395,8 @@ def _run(command: Sequence[str], *, cwd: Path | None = None) -> None:
             timeout=RUN_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise VerificationError(f"command failed to execute: {command[0]}: {exc}") from exc
+        message = f"command failed to execute: {command[0]}: {exc}"
+        raise VerificationError(message) from exc
     if result.returncode != 0:
         details = (result.stdout + "\n" + result.stderr).strip()
         raise VerificationError(
@@ -433,7 +434,8 @@ def _project_identity(project_file: Path = PROJECT_FILE) -> tuple[str, str]:
             project = tomllib.load(stream)["project"]
         return str(project["name"]), str(project["version"])
     except (OSError, KeyError, tomllib.TOMLDecodeError) as exc:
-        raise VerificationError(f"{project_file}: cannot read project identity: {exc}") from exc
+        message = f"{project_file}: cannot read project identity: {exc}"
+        raise VerificationError(message) from exc
 
 
 def build_artifacts(

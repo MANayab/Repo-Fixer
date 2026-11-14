@@ -166,8 +166,10 @@ def validate_existing_artifacts(
         and (path.name.endswith(".tar.gz") or path.name.endswith(".zip"))
     )
     if len(wheels) != 1 or len(sdists) != 1:
+        existing = [*wheels, *sdists]
+        offending = existing[0] if existing else artifact_dir
         raise VerificationError(
-            f"{artifact_dir}: expected exactly one wheel and one sdist; "
+            f"{offending}: expected exactly one wheel and one sdist; "
             f"found {len(wheels)} wheel(s) and {len(sdists)} sdist(s)"
         )
     validate_wheel_artifact(wheels[0], expected_name, expected_version)
@@ -338,6 +340,20 @@ def venv_python(environment: Path) -> Path:
     return Path(environment) / "bin" / "python"
 
 
+def pip_index_arguments(
+    wheelhouse: Path | None, no_index: bool
+) -> list[str]:
+    """Return index flags shared by builds and installs."""
+    if no_index and wheelhouse is None:
+        raise VerificationError("--no-index requires --wheelhouse")
+    flags: list[str] = []
+    if no_index:
+        flags.append("--no-index")
+    if wheelhouse is not None:
+        flags.extend(["--find-links", str(wheelhouse)])
+    return flags
+
+
 def pip_install_command(
     python: Path,
     artifact: Path,
@@ -346,8 +362,6 @@ def pip_install_command(
     no_index: bool,
 ) -> list[str]:
     """Build the exact pip install command for normal, wheelhouse, or offline mode."""
-    if no_index and wheelhouse is None:
-        raise VerificationError("--no-index requires --wheelhouse")
     command = [
         str(python),
         "-m",
@@ -355,12 +369,9 @@ def pip_install_command(
         "install",
         "--disable-pip-version-check",
         "--no-input",
+        *pip_index_arguments(wheelhouse, no_index),
+        str(artifact),
     ]
-    if no_index:
-        command.append("--no-index")
-    if wheelhouse is not None:
-        command.extend(["--find-links", str(wheelhouse)])
-    command.append(str(artifact))
     return command
 
 
@@ -416,10 +427,17 @@ def _project_identity(project_file: Path = PROJECT_FILE) -> tuple[str, str]:
         raise VerificationError(f"{project_file}: cannot read project identity: {exc}") from exc
 
 
-def build_artifacts(checkout: Path, artifact_dir: Path) -> tuple[list[Path], list[Path]]:
+def build_artifacts(
+    checkout: Path,
+    artifact_dir: Path,
+    *,
+    wheelhouse: Path | None,
+    no_index: bool,
+) -> tuple[list[Path], list[Path]]:
     """Build wheel and sdist with pip/setuptools, without the `build` package."""
     ensure_empty_artifact_directory(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    index_flags = pip_index_arguments(wheelhouse, no_index)
     _run(
         [
             sys.executable,
@@ -428,6 +446,7 @@ def build_artifacts(checkout: Path, artifact_dir: Path) -> tuple[list[Path], lis
             "wheel",
             "--disable-pip-version-check",
             "--no-deps",
+            *index_flags,
             "--wheel-dir",
             str(artifact_dir),
             str(checkout),
@@ -443,6 +462,7 @@ def build_artifacts(checkout: Path, artifact_dir: Path) -> tuple[list[Path], lis
             "--disable-pip-version-check",
             "--no-deps",
             "--no-binary=:all:",
+            *index_flags,
             "--dest",
             str(artifact_dir),
             str(checkout),
@@ -465,10 +485,21 @@ def verify_release(
         raise VerificationError("--no-index requires --wheelhouse")
     if wheelhouse is not None:
         validate_wheelhouse(wheelhouse)
-    wheels, sdists = build_artifacts(checkout, artifact_dir)
+    wheels, sdists = build_artifacts(
+        checkout,
+        artifact_dir,
+        wheelhouse=wheelhouse,
+        no_index=no_index,
+    )
     artifacts = [*wheels, *sdists]
+    expected_name, expected_version = _project_identity(
+        Path(checkout) / "pyproject.toml"
+    )
     for artifact in artifacts:
-        validate_wheel_artifact(*[artifact, *_project_identity(Path(checkout) / "pyproject.toml")]) if artifact.suffix == ".whl" else validate_sdist_artifact(*[artifact, *_project_identity(Path(checkout) / "pyproject.toml")])
+        if artifact.suffix == ".whl":
+            validate_wheel_artifact(artifact, expected_name, expected_version)
+        else:
+            validate_sdist_artifact(artifact, expected_name, expected_version)
         install_and_smoke(
             artifact,
             checkout=checkout,

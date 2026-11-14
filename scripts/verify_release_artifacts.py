@@ -75,9 +75,7 @@ def validate_wheel_artifact(
                 raise VerificationError(
                     f"{wheel_path}: expected exactly one .dist-info/METADATA file"
                 )
-            metadata = _metadata_from_bytes(
-                archive.read(metadata_files[0]), wheel_path
-            )
+            metadata = _metadata_from_bytes(archive.read(metadata_files[0]), wheel_path)
     except (OSError, zipfile.BadZipFile, RuntimeError, KeyError) as exc:
         if isinstance(exc, VerificationError):
             raise
@@ -88,9 +86,7 @@ def validate_wheel_artifact(
             wheel_path.name
         )
     except (InvalidVersion, ValueError) as exc:
-        raise VerificationError(
-            f"{wheel_path}: invalid wheel filename: {exc}"
-        ) from exc
+        raise VerificationError(f"{wheel_path}: invalid wheel filename: {exc}") from exc
 
     if not _same_distribution(str(filename_name), metadata["Name"]):
         raise VerificationError(
@@ -171,8 +167,7 @@ def validate_existing_artifacts(
     sdists = sorted(
         path
         for path in artifact_dir.iterdir()
-        if path.is_file()
-        and path.name.endswith(".tar.gz")
+        if path.is_file() and path.name.endswith(".tar.gz")
     )
     if len(wheels) != 1 or len(sdists) != 1:
         existing = [*wheels, *sdists]
@@ -336,9 +331,7 @@ def ensure_safe_cleanup_target(
 def temporary_workspace(checkout: Path, artifacts_dir: Path) -> Iterator[Path]:
     """Create a temporary workspace outside the checkout and artifact directory."""
     with tempfile.TemporaryDirectory(prefix="repo-fixer-release-") as temporary:
-        workspace = ensure_safe_cleanup_target(
-            Path(temporary), checkout, artifacts_dir
-        )
+        workspace = ensure_safe_cleanup_target(Path(temporary), checkout, artifacts_dir)
         yield workspace
 
 
@@ -349,9 +342,7 @@ def venv_python(environment: Path) -> Path:
     return Path(environment) / "bin" / "python"
 
 
-def pip_index_arguments(
-    wheelhouse: Path | None, no_index: bool
-) -> list[str]:
+def pip_index_arguments(wheelhouse: Path | None, no_index: bool) -> list[str]:
     """Return index flags shared by builds and installs."""
     if no_index and wheelhouse is None:
         raise VerificationError("--no-index requires --wheelhouse")

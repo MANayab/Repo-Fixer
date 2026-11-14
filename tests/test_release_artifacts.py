@@ -6,7 +6,6 @@ import os
 import sys
 import tarfile
 import zipfile
-from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -315,9 +314,9 @@ def test_install_and_smoke_runs_real_flow_with_mocked_subprocess(
         wheelhouse=wheelhouse,
         no_index=no_index,
     )
-    assert calls[0][1:4] == ["-m", "venv", str(calls[0][4])]
+    assert calls[0][1:4] == ["-m", "venv", str(calls[0][3])]
     assert calls[1] == [
-        str(verifier.venv_python(Path(calls[0][4]))),
+        str(verifier.venv_python(Path(calls[0][3]))),
         "-m",
         "pip",
         "install",
@@ -326,7 +325,7 @@ def test_install_and_smoke_runs_real_flow_with_mocked_subprocess(
         *expected_flags,
         str(artifact),
     ]
-    assert calls[2][0] == str(verifier.venv_python(Path(calls[0][4])))
+    assert calls[2][0] == str(verifier.venv_python(Path(calls[0][3])))
     assert calls[2][1:3] == ["-m", "repo_fixer"]
 
 

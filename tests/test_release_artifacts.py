@@ -26,16 +26,9 @@ def make_wheel(
 ) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     wheel_distribution = name.replace("-", "_")
-    wheel_path = path / (
-        filename or f"{wheel_distribution}-{version}-py3-none-any.whl"
-    )
+    wheel_path = path / (filename or f"{wheel_distribution}-{version}-py3-none-any.whl")
     dist_info = f"{name.replace('-', '_')}-{version}.dist-info"
-    metadata = (
-        "Metadata-Version: 2.1\n"
-        f"Name: {name}\n"
-        f"Version: {version}\n"
-        "\n"
-    )
+    metadata = f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n"
     with zipfile.ZipFile(wheel_path, "w") as archive:
         archive.writestr(f"{dist_info}/METADATA", metadata)
         archive.writestr(
@@ -50,11 +43,7 @@ def make_sdist(path: Path, name: str, version: str) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     archive_path = path / f"{name}-{version}.tar.gz"
     info = tarfile.TarInfo(f"{name}-{version}/PKG-INFO")
-    data = (
-        "Metadata-Version: 2.1\n"
-        f"Name: {name}\n"
-        f"Version: {version}\n\n"
-    ).encode()
+    data = (f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n").encode()
     info.size = len(data)
     with tarfile.open(archive_path, "w:gz") as archive:
         archive.addfile(info, io.BytesIO(data))

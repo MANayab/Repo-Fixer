@@ -137,7 +137,6 @@ def test_well_named_but_misleading_dependency_wheel_is_not_accepted(
         "0.43.0",
         filename="setuptools-68.0.0-py3-none-any.whl",
     )
-    make_wheel(tmp_path, "setuptools", "68.0.0")
     with pytest.raises(verifier.VerificationError, match="filename"):
         verifier.validate_wheelhouse(tmp_path)
 

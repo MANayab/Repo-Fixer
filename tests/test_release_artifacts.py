@@ -432,11 +432,11 @@ py-modules = ["tiny_release_probe"]
 def test_real_build_produces_wheel_and_sdist_without_modifying_checkout(
     tmp_path: Path,
 ) -> None:
-    if (
-        importlib.util.find_spec("pip") is None
-        or importlib.util.find_spec("setuptools") is None
-    ):
-        pytest.skip("real build requires pip and setuptools to be installed")
+    if importlib.util.find_spec("pip") is None:
+        pytest.skip(
+            "real build requires pip; setuptools and wheel are provisioned "
+            "inside the isolated build environment"
+        )
 
     checkout = tmp_path / "tiny-project"
     artifacts = tmp_path / "artifacts"

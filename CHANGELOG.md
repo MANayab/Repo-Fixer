@@ -8,7 +8,7 @@ All notable changes to Repo Fixer are documented here.
 - Added a release-artifact verifier for building, validating, installing, smoke-testing, and checksumming wheel and source-distribution artifacts.
 
 ### Fixed
-- Validate source distributions against a single root-level `PKG-INFO` with the expected project identity.
+- Added regression coverage for source-distribution validation of a single root-level `PKG-INFO` with the expected project identity.
 - Identify wheel metadata from the unique canonical top-level `.dist-info/METADATA` entry, ignoring nested vendored metadata and checking directory/metadata identity.
 
 ## [0.3.1] — Stabilization and Release Integrity

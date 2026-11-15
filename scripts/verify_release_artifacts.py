@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -19,7 +20,7 @@ import zipfile
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from email.parser import Parser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from pip._vendor.packaging.utils import canonicalize_name, parse_wheel_filename
 from pip._vendor.packaging.version import InvalidVersion, Version
@@ -130,7 +131,9 @@ def validate_sdist_artifact(
             members = [
                 member
                 for member in all_members
-                if member.isfile() and Path(member.name).name == "PKG-INFO"
+                if member.isfile()
+                and PurePosixPath(member.name).name == "PKG-INFO"
+                and len(PurePosixPath(member.name).parts) == 2
             ]
             if len(members) != 1:
                 raise VerificationError(
@@ -385,14 +388,26 @@ def _run(command: Sequence[str], *, cwd: Path | None = None) -> None:
             text=True,
             timeout=RUN_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        message = f"command failed to execute: {command[0]}: {exc}"
-        raise VerificationError(message) from exc
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(errors="replace")
+        raise VerificationError(
+            f"command timed out: {' '.join(command)}\n"
+            f"stdout:\n{stdout}\nstderr:\n{stderr}"
+        ) from exc
+    except OSError as exc:
+        raise VerificationError(
+            f"command failed to execute: {command[0]}: {exc}"
+        ) from exc
     if result.returncode != 0:
-        details = (result.stdout + "\n" + result.stderr).strip()
         raise VerificationError(
             f"command exited with status {result.returncode}: "
-            f"{' '.join(command)}\n{details}"
+            f"{' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
 
 
@@ -429,6 +444,44 @@ def _project_identity(project_file: Path = PROJECT_FILE) -> tuple[str, str]:
         raise VerificationError(message) from exc
 
 
+def _copy_checkout_for_build(checkout: Path, destination: Path, *, step: str) -> Path:
+    """Copy project sources outside the checkout before invoking build backends."""
+    try:
+        return Path(
+            shutil.copytree(
+                checkout,
+                destination,
+                ignore=shutil.ignore_patterns(
+                    ".git",
+                    ".venv",
+                    "__pycache__",
+                    "*.py[cod]",
+                    ".pytest_cache",
+                    ".mypy_cache",
+                    ".ruff_cache",
+                    "build",
+                    "dist",
+                    "*.egg-info",
+                ),
+            )
+        )
+    except OSError as exc:
+        raise VerificationError(
+            f"{step} failed: could not prepare isolated build source "
+            f"from {checkout}: {exc}"
+        ) from exc
+
+
+def _run_build_step(
+    step: str, command: Sequence[str], *, cwd: Path | None = None
+) -> None:
+    """Run one named build step and retain the underlying command diagnostics."""
+    try:
+        _run(command, cwd=cwd)
+    except VerificationError as exc:
+        raise VerificationError(f"{step} failed:\n{exc}") from exc
+
+
 def build_artifacts(
     checkout: Path,
     artifact_dir: Path,
@@ -436,12 +489,16 @@ def build_artifacts(
     wheelhouse: Path | None,
     no_index: bool,
 ) -> tuple[list[Path], list[Path]]:
-    """Build wheel and sdist with pip/setuptools, without the `build` package."""
+    """Build a wheel with pip and an sdist with setuptools' PEP 517 backend."""
     ensure_empty_artifact_directory(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
     index_flags = pip_index_arguments(wheelhouse, no_index)
-    _run(
-        [
+
+    with temporary_workspace(checkout, artifact_dir) as workspace:
+        wheel_source = _copy_checkout_for_build(
+            Path(checkout), workspace / "wheel-source", step="Wheel build"
+        )
+        wheel_command = [
             sys.executable,
             "-m",
             "pip",
@@ -451,26 +508,46 @@ def build_artifacts(
             *index_flags,
             "--wheel-dir",
             str(artifact_dir),
-            str(checkout),
-        ],
-        cwd=checkout,
-    )
-    _run(
-        [
-            sys.executable,
+            str(wheel_source),
+        ]
+        _run_build_step("Wheel build", wheel_command, cwd=wheel_source)
+
+        sdist_source = _copy_checkout_for_build(
+            Path(checkout),
+            workspace / "sdist-source",
+            step="Source distribution build",
+        )
+        build_environment = workspace / "sdist-build-venv"
+        _run_build_step(
+            "Source distribution build",
+            [sys.executable, "-m", "venv", str(build_environment)],
+        )
+        build_python = venv_python(build_environment)
+        install_build_requirements = [
+            str(build_python),
             "-m",
             "pip",
-            "download",
+            "install",
             "--disable-pip-version-check",
-            "--no-deps",
-            "--no-binary=:all:",
+            "--no-input",
             *index_flags,
-            "--dest",
+            "setuptools>=68",
+            "wheel",
+        ]
+        _run_build_step("Source distribution build", install_build_requirements)
+        sdist_script = (
+            "import sys\n"
+            "from setuptools.build_meta import build_sdist\n"
+            "print(build_sdist(sys.argv[1]))\n"
+        )
+        sdist_command = [
+            str(build_python),
+            "-c",
+            sdist_script,
             str(artifact_dir),
-            str(checkout),
-        ],
-        cwd=checkout,
-    )
+        ]
+        _run_build_step("Source distribution build", sdist_command, cwd=sdist_source)
+
     name, version = _project_identity(Path(checkout) / "pyproject.toml")
     return validate_existing_artifacts(artifact_dir, name, version)
 

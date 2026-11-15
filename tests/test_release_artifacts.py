@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import os
+import subprocess
 import sys
 import tarfile
 import zipfile
@@ -404,3 +405,108 @@ def test_cleanup_safety_handles_windows_style_separators_via_pathlib(
     child = checkout / "temporary"
     with pytest.raises(verifier.VerificationError):
         verifier.ensure_safe_cleanup_target(child, checkout, artifacts)
+
+
+def _write_tiny_setuptools_project(checkout: Path) -> None:
+    checkout.mkdir(parents=True, exist_ok=True)
+    (checkout / "pyproject.toml").write_text(
+        """[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiny-release-probe"
+version = "1.2.3"
+
+[tool.setuptools]
+py-modules = ["tiny_release_probe"]
+""",
+        encoding="utf-8",
+    )
+    (checkout / "tiny_release_probe.py").write_text(
+        "VALUE = 1\n",
+        encoding="utf-8",
+    )
+
+
+def test_real_build_produces_wheel_and_sdist_without_modifying_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if importlib.util.find_spec("pip") is None:
+        pytest.skip(
+            "real build requires pip; setuptools and wheel are provisioned "
+            "inside the isolated build environment"
+        )
+
+    for name in tuple(os.environ):
+        if name.startswith("COV_CORE_") or name == "COVERAGE_PROCESS_START":
+            monkeypatch.delenv(name, raising=False)
+
+    checkout = tmp_path / "tiny-project"
+    artifacts = tmp_path / "artifacts"
+    _write_tiny_setuptools_project(checkout)
+
+    before_listing = sorted(
+        path.relative_to(checkout).as_posix() for path in checkout.rglob("*")
+    )
+    before_files = {
+        path.relative_to(checkout).as_posix(): path.read_bytes()
+        for path in checkout.rglob("*")
+        if path.is_file()
+    }
+
+    wheels, sdists = verifier.build_artifacts(
+        checkout, artifacts, wheelhouse=None, no_index=False
+    )
+
+    assert len(wheels) == 1
+    assert len(sdists) == 1
+    metadata = verifier.validate_sdist_artifact(
+        sdists[0], "tiny-release-probe", "1.2.3"
+    )
+    assert metadata["Name"] == "tiny-release-probe"
+    assert metadata["Version"] == "1.2.3"
+
+    after_listing = sorted(
+        path.relative_to(checkout).as_posix() for path in checkout.rglob("*")
+    )
+    after_files = {
+        path.relative_to(checkout).as_posix(): path.read_bytes()
+        for path in checkout.rglob("*")
+        if path.is_file()
+    }
+    assert after_listing == before_listing
+    assert after_files == before_files
+
+
+def test_sdist_build_failure_names_step_and_includes_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checkout = tmp_path / "tiny-project"
+    artifacts = tmp_path / "artifacts"
+    _write_tiny_setuptools_project(checkout)
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if "wheel" in command and "--wheel-dir" in command:
+            wheel_dir = Path(command[command.index("--wheel-dir") + 1])
+            make_wheel(wheel_dir, "tiny-release-probe", "1.2.3")
+            return subprocess.CompletedProcess(command, 0, "wheel output", "")
+        if command[1:3] == ["-m", "venv"]:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if command[1:3] == ["-m", "pip"]:
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if "-c" in command:
+            return subprocess.CompletedProcess(
+                command, 1, "backend stdout", "simulated sdist stderr"
+            )
+        pytest.fail(f"unexpected subprocess command: {command}")
+
+    monkeypatch.setattr(verifier.subprocess, "run", fake_run)
+
+    with pytest.raises(
+        verifier.VerificationError, match="Source distribution build failed"
+    ) as error:
+        verifier.build_artifacts(checkout, artifacts, wheelhouse=None, no_index=False)
+
+    assert "backend stdout" in str(error.value)
+    assert "simulated sdist stderr" in str(error.value)

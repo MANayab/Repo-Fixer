@@ -442,9 +442,7 @@ def _project_identity(project_file: Path = PROJECT_FILE) -> tuple[str, str]:
         raise VerificationError(message) from exc
 
 
-def _copy_checkout_for_build(
-    checkout: Path, destination: Path, *, step: str
-) -> Path:
+def _copy_checkout_for_build(checkout: Path, destination: Path, *, step: str) -> Path:
     """Copy project sources outside the checkout before invoking build backends."""
     try:
         return Path(

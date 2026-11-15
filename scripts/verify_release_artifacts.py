@@ -443,7 +443,6 @@ def install_and_smoke(
                 python, Path(artifact), wheelhouse=wheelhouse, no_index=no_index
             )
         )
-        print("Smoke test...", flush=True)
         _run([str(python), "-m", "repo_fixer", "--help"], cwd=smoke_project)
 
 
@@ -511,7 +510,6 @@ def build_artifacts(
         wheel_source = _copy_checkout_for_build(
             Path(checkout), workspace / "wheel-source", step="Wheel build"
         )
-        print("Building wheel...", flush=True)
         wheel_command = [
             sys.executable,
             "-m",
@@ -526,7 +524,6 @@ def build_artifacts(
         ]
         _run_build_step("Wheel build", wheel_command, cwd=wheel_source)
 
-        print("Building sdist...", flush=True)
         sdist_source = _copy_checkout_for_build(
             Path(checkout),
             workspace / "sdist-source",
@@ -594,10 +591,6 @@ def verify_release(
             validate_wheel_artifact(artifact, expected_name, expected_version)
         else:
             validate_sdist_artifact(artifact, expected_name, expected_version)
-        print(
-            "Installing wheel..." if artifact.suffix == ".whl" else "Installing sdist...",
-            flush=True,
-        )
         install_and_smoke(
             artifact,
             checkout=checkout,

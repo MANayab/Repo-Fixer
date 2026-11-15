@@ -589,8 +589,13 @@ def test_wheelhouse_rejects_only_nested_dist_info_metadata(tmp_path: Path) -> No
     [
         ("setuptools-84.2.1.dist-info", "setuptools", "84.2.2"),
         ("setuptools-84.2.2.dist-info", "setuptools", "84.2.1"),
+        ("other-84.2.1.dist-info", "setuptools", "84.2.1"),
     ],
-    ids=["directory-version-mismatch", "directory-name-version-mismatch"],
+    ids=[
+        "metadata-version-disagrees",
+        "directory-version-disagrees",
+        "directory-name-disagrees",
+    ],
 )
 def test_wheelhouse_rejects_canonical_directory_metadata_mismatch(
     tmp_path: Path, directory: str, metadata_name: str, metadata_version: str

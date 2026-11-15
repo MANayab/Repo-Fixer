@@ -424,8 +424,7 @@ py-modules = ["tiny_release_probe"]
         encoding="utf-8",
     )
     (checkout / "tiny_release_probe.py").write_text(
-        '"""Tiny package used to exercise real release builds."""\n'
-        'VALUE = "probe"\n',
+        "VALUE = 1\n",
         encoding="utf-8",
     )
 

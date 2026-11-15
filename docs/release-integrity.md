@@ -27,6 +27,18 @@ python scripts/verify_release_artifacts.py [--checkout PATH] [--artifacts-dir EM
 
 ## The three dependency modes
 
+Normal mode uses the configured package indexes:
+
+```bash
+python scripts/verify_release_artifacts.py
+```
+
+To search a local wheelhouse while keeping indexes available as fallback:
+
+```bash
+python scripts/verify_release_artifacts.py --wheelhouse <wheelhouse>
+```
+
 | Mode | Invocation | Dependency lookup |
 |---|---|---|
 | Normal | No wheelhouse options | Package indexes are enabled |

@@ -35,3 +35,7 @@ Set `GITHUB_TOKEN` to a fine-grained token with Contents read/write and Pull req
 The PR uses a new `repo-fixer/improvements-...` branch and targets the repository's default branch. Only new paths are committed. Existing remote paths stop the operation. `--force` cannot be combined with `--create-pr`. No direct default-branch push, force-push, file deletion, overwrite, or automatic merge is possible.
 
 See [GitHub integration](github-integration.md) for permissions, behavior, and error handling.
+
+## Release verification
+
+Build, validate, install, and smoke-test release wheel and source-distribution artifacts with the [release integrity guide](release-integrity.md). It documents normal, wheelhouse-assisted, and fully offline verification modes.

@@ -28,7 +28,7 @@ Repo Fixer checks these essentials, explains the gaps it finds, and prepares sta
 
 ## 60-second Quick Start
 
-Requires Python 3.11 or newer.
+Requires Git and Python 3.11 or newer.
 
 ### Windows PowerShell
 
@@ -93,7 +93,7 @@ Both `scan` and `score` accept an optional repository path and `--format text|js
 ## Safety by default
 
 - `scan`, `score`, and `fix --dry-run` do not modify repository files.
-- Local generation previews the plan and asks before creating files unless `--yes` is supplied.
+- Local generation previews the plan; `--yes` skips only the normal confirmation for new-file creation. README replacement still requires its own confirmation and backup.
 - Existing files are skipped. New files use exclusive creation to avoid silently replacing a file that appears after planning.
 - A missing LICENSE is never guessed; choose one explicitly.
 - Replacing a weak README locally requires `--force`, a second confirmation, and a timestamped backup.

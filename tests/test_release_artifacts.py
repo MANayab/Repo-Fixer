@@ -579,7 +579,9 @@ def test_wheelhouse_rejects_only_nested_dist_info_metadata(tmp_path: Path) -> No
         [],
         [("setuptools-84.2.1.dist-info", "setuptools", "84.2.1")],
     )
-    with pytest.raises(verifier.VerificationError, match="setuptools-84.2.1.*canonical"):
+    with pytest.raises(
+        verifier.VerificationError, match="setuptools-84.2.1.*canonical"
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -778,3 +780,15 @@ def test_sdist_rejects_missing_root_pkg_info(tmp_path: Path) -> None:
         archive.addfile(info, io.BytesIO(data))
     with pytest.raises(verifier.VerificationError, match="exactly one PKG-INFO"):
         verifier.validate_sdist_artifact(archive_path, "repo-fixer", "0.3.1")
+
+
+def test_repo_fixer_wheel_directory_name_uses_pep503_normalization(
+    tmp_path: Path,
+) -> None:
+    wheel = make_wheel_with_layout(
+        tmp_path,
+        "repo_fixer-0.3.1-py3-none-any.whl",
+        [("Repo.Fixer-0.3.1.dist-info", "Repo.Fixer", "0.3.1")],
+    )
+    metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
+    assert metadata == {"Name": "Repo.Fixer", "Version": "0.3.1"}

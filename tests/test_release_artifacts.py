@@ -502,9 +502,7 @@ def test_sdist_build_failure_names_step_and_includes_output(
     with pytest.raises(
         verifier.VerificationError, match="Source distribution build failed"
     ) as error:
-        verifier.build_artifacts(
-            checkout, artifacts, wheelhouse=None, no_index=False
-        )
+        verifier.build_artifacts(checkout, artifacts, wheelhouse=None, no_index=False)
 
     assert "backend stdout" in str(error.value)
     assert "simulated sdist stderr" in str(error.value)

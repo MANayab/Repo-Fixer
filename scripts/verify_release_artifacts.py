@@ -55,6 +55,38 @@ def _same_distribution(left: str, right: str) -> bool:
     return canonicalize_name(left) == canonicalize_name(right)
 
 
+def _canonical_wheel_metadata(
+    archive: zipfile.ZipFile, wheel_path: Path
+) -> dict[str, str]:
+    """Read the unique top-level dist-info metadata and verify its directory."""
+    canonical_files = [
+        PurePosixPath(member)
+        for member in archive.namelist()
+        if len(PurePosixPath(member).parts) == 2
+        and PurePosixPath(member).parts[0].endswith(".dist-info")
+        and PurePosixPath(member).parts[1] == "METADATA"
+    ]
+    if len(canonical_files) != 1:
+        raise VerificationError(
+            f"{wheel_path.name}: canonical metadata rule failed; expected exactly "
+            f"one top-level .dist-info/METADATA file, found {len(canonical_files)}"
+        )
+
+    metadata_path = canonical_files[0]
+    metadata = _metadata_from_bytes(archive.read(metadata_path.as_posix()), wheel_path)
+    expected_directory = (
+        f"{canonicalize_name(metadata['Name']).replace('-', '_')}-"
+        f"{Version(metadata['Version'])}.dist-info"
+    )
+    if metadata_path.parts[0] != expected_directory:
+        raise VerificationError(
+            f"{wheel_path.name}: canonical directory rule failed; expected "
+            f"{expected_directory!r} from embedded Name and Version, "
+            f"found {metadata_path.parts[0]!r}"
+        )
+    return metadata
+
+
 def validate_wheel_artifact(
     wheel_path: Path, expected_name: str, expected_version: str
 ) -> dict[str, str]:
@@ -67,16 +99,7 @@ def validate_wheel_artifact(
                 raise VerificationError(
                     f"{wheel_path}: corrupt ZIP member {corrupt_member!r}"
                 )
-            metadata_files = [
-                name
-                for name in archive.namelist()
-                if name.endswith(".dist-info/METADATA")
-            ]
-            if len(metadata_files) != 1:
-                raise VerificationError(
-                    f"{wheel_path}: expected exactly one .dist-info/METADATA file"
-                )
-            metadata = _metadata_from_bytes(archive.read(metadata_files[0]), wheel_path)
+            metadata = _canonical_wheel_metadata(archive, wheel_path)
     except (OSError, zipfile.BadZipFile, RuntimeError, KeyError) as exc:
         if isinstance(exc, VerificationError):
             raise
@@ -199,18 +222,7 @@ def validate_wheelhouse(wheelhouse: Path) -> dict[str, Path]:
                     raise VerificationError(
                         f"{candidate}: corrupt ZIP member {corrupt_member!r}"
                     )
-                metadata_files = [
-                    item
-                    for item in archive.namelist()
-                    if item.endswith(".dist-info/METADATA")
-                ]
-                if len(metadata_files) != 1:
-                    raise VerificationError(
-                        f"{candidate}: expected exactly one .dist-info/METADATA file"
-                    )
-                metadata = _metadata_from_bytes(
-                    archive.read(metadata_files[0]), candidate
-                )
+                metadata = _canonical_wheel_metadata(archive, candidate)
         except (OSError, zipfile.BadZipFile, RuntimeError, KeyError) as exc:
             if isinstance(exc, VerificationError):
                 raise
@@ -431,6 +443,7 @@ def install_and_smoke(
                 python, Path(artifact), wheelhouse=wheelhouse, no_index=no_index
             )
         )
+        print("Smoke test...", flush=True)
         _run([str(python), "-m", "repo_fixer", "--help"], cwd=smoke_project)
 
 
@@ -498,6 +511,7 @@ def build_artifacts(
         wheel_source = _copy_checkout_for_build(
             Path(checkout), workspace / "wheel-source", step="Wheel build"
         )
+        print("Building wheel...", flush=True)
         wheel_command = [
             sys.executable,
             "-m",
@@ -512,6 +526,7 @@ def build_artifacts(
         ]
         _run_build_step("Wheel build", wheel_command, cwd=wheel_source)
 
+        print("Building sdist...", flush=True)
         sdist_source = _copy_checkout_for_build(
             Path(checkout),
             workspace / "sdist-source",
@@ -579,6 +594,10 @@ def verify_release(
             validate_wheel_artifact(artifact, expected_name, expected_version)
         else:
             validate_sdist_artifact(artifact, expected_name, expected_version)
+        print(
+            "Installing wheel..." if artifact.suffix == ".whl" else "Installing sdist...",
+            flush=True,
+        )
         install_and_smoke(
             artifact,
             checkout=checkout,

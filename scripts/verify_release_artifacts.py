@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -429,6 +430,43 @@ def _project_identity(project_file: Path = PROJECT_FILE) -> tuple[str, str]:
         raise VerificationError(message) from exc
 
 
+def _copy_checkout_for_build(checkout: Path, destination: Path) -> Path:
+    """Copy project sources outside the checkout before invoking build backends."""
+    try:
+        return Path(
+            shutil.copytree(
+                checkout,
+                destination,
+                ignore=shutil.ignore_patterns(
+                    ".git",
+                    ".venv",
+                    "__pycache__",
+                    "*.py[cod]",
+                    ".pytest_cache",
+                    ".mypy_cache",
+                    ".ruff_cache",
+                    "build",
+                    "dist",
+                    "*.egg-info",
+                ),
+            )
+        )
+    except OSError as exc:
+        raise VerificationError(
+            f"could not prepare isolated build source from {checkout}: {exc}"
+        ) from exc
+
+
+def _run_build_step(
+    step: str, command: Sequence[str], *, cwd: Path | None = None
+) -> None:
+    """Run one named build step and retain the underlying command diagnostics."""
+    try:
+        _run(command, cwd=cwd)
+    except VerificationError as exc:
+        raise VerificationError(f"{step} failed:\n{exc}") from exc
+
+
 def build_artifacts(
     checkout: Path,
     artifact_dir: Path,
@@ -436,12 +474,16 @@ def build_artifacts(
     wheelhouse: Path | None,
     no_index: bool,
 ) -> tuple[list[Path], list[Path]]:
-    """Build wheel and sdist with pip/setuptools, without the `build` package."""
+    """Build a wheel with pip and an sdist with setuptools' PEP 517 backend."""
     ensure_empty_artifact_directory(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
     index_flags = pip_index_arguments(wheelhouse, no_index)
-    _run(
-        [
+
+    with temporary_workspace(checkout, artifact_dir) as workspace:
+        wheel_source = _copy_checkout_for_build(
+            Path(checkout), workspace / "wheel-source"
+        )
+        wheel_command = [
             sys.executable,
             "-m",
             "pip",
@@ -451,26 +493,48 @@ def build_artifacts(
             *index_flags,
             "--wheel-dir",
             str(artifact_dir),
-            str(checkout),
-        ],
-        cwd=checkout,
-    )
-    _run(
-        [
-            sys.executable,
+            str(wheel_source),
+        ]
+        _run_build_step("Wheel build", wheel_command, cwd=wheel_source)
+
+        sdist_source = _copy_checkout_for_build(
+            Path(checkout), workspace / "sdist-source"
+        )
+        build_environment = workspace / "sdist-build-venv"
+        _run_build_step(
+            "Source distribution build",
+            [sys.executable, "-m", "venv", str(build_environment)],
+        )
+        build_python = venv_python(build_environment)
+        install_build_requirements = [
+            str(build_python),
             "-m",
             "pip",
-            "download",
+            "install",
             "--disable-pip-version-check",
-            "--no-deps",
-            "--no-binary=:all:",
+            "--no-input",
             *index_flags,
-            "--dest",
+            "setuptools>=68",
+            "wheel",
+        ]
+        _run_build_step(
+            "Source distribution build", install_build_requirements
+        )
+        sdist_script = (
+            "import sys\n"
+            "from setuptools.build_meta import build_sdist\n"
+            "print(build_sdist(sys.argv[1]))\n"
+        )
+        sdist_command = [
+            str(build_python),
+            "-c",
+            sdist_script,
             str(artifact_dir),
-            str(checkout),
-        ],
-        cwd=checkout,
-    )
+        ]
+        _run_build_step(
+            "Source distribution build", sdist_command, cwd=sdist_source
+        )
+
     name, version = _project_identity(Path(checkout) / "pyproject.toml")
     return validate_existing_artifacts(artifact_dir, name, version)
 

@@ -126,10 +126,6 @@ See [GitHub integration and token permissions](docs/github-integration.md).
 Create a starter configuration with `repo-fixer init`. The optional `repo-fixer.yml` file supports project details and generation controls. For example:
 
 ```yaml
-license: MIT
-project_name: "My Project"
-project_description: "A short description of the project."
-default_branch: main
 generate:
   readme: true
   license: true

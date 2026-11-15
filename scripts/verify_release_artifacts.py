@@ -386,14 +386,26 @@ def _run(command: Sequence[str], *, cwd: Path | None = None) -> None:
             text=True,
             timeout=RUN_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        message = f"command failed to execute: {command[0]}: {exc}"
-        raise VerificationError(message) from exc
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(errors="replace")
+        raise VerificationError(
+            f"command timed out: {' '.join(command)}\n"
+            f"stdout:\n{stdout}\nstderr:\n{stderr}"
+        ) from exc
+    except OSError as exc:
+        raise VerificationError(
+            f"command failed to execute: {command[0]}: {exc}"
+        ) from exc
     if result.returncode != 0:
-        details = (result.stdout + "\n" + result.stderr).strip()
         raise VerificationError(
             f"command exited with status {result.returncode}: "
-            f"{' '.join(command)}\n{details}"
+            f"{' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
 
 
@@ -430,7 +442,9 @@ def _project_identity(project_file: Path = PROJECT_FILE) -> tuple[str, str]:
         raise VerificationError(message) from exc
 
 
-def _copy_checkout_for_build(checkout: Path, destination: Path) -> Path:
+def _copy_checkout_for_build(
+    checkout: Path, destination: Path, *, step: str
+) -> Path:
     """Copy project sources outside the checkout before invoking build backends."""
     try:
         return Path(
@@ -453,7 +467,8 @@ def _copy_checkout_for_build(checkout: Path, destination: Path) -> Path:
         )
     except OSError as exc:
         raise VerificationError(
-            f"could not prepare isolated build source from {checkout}: {exc}"
+            f"{step} failed: could not prepare isolated build source "
+            f"from {checkout}: {exc}"
         ) from exc
 
 
@@ -481,7 +496,7 @@ def build_artifacts(
 
     with temporary_workspace(checkout, artifact_dir) as workspace:
         wheel_source = _copy_checkout_for_build(
-            Path(checkout), workspace / "wheel-source"
+            Path(checkout), workspace / "wheel-source", step="Wheel build"
         )
         wheel_command = [
             sys.executable,
@@ -498,7 +513,9 @@ def build_artifacts(
         _run_build_step("Wheel build", wheel_command, cwd=wheel_source)
 
         sdist_source = _copy_checkout_for_build(
-            Path(checkout), workspace / "sdist-source"
+            Path(checkout),
+            workspace / "sdist-source",
+            step="Source distribution build",
         )
         build_environment = workspace / "sdist-build-venv"
         _run_build_step(

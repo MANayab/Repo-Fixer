@@ -483,7 +483,7 @@ def test_sdist_build_failure_names_step_and_includes_output(
     _write_tiny_setuptools_project(checkout)
 
     def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if "wheel" in command:
+        if "wheel" in command and "--wheel-dir" in command:
             wheel_dir = Path(command[command.index("--wheel-dir") + 1])
             make_wheel(wheel_dir, "tiny-release-probe", "1.2.3")
             return subprocess.CompletedProcess(command, 0, "wheel output", "")

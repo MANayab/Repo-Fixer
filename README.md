@@ -123,7 +123,7 @@ See [GitHub integration and token permissions](docs/github-integration.md).
 
 ## Configuration
 
-Create a starter configuration with `repo-fixer init`. The optional `repo-fixer.yml` file supports project details and generation controls. For example:
+Create a starter configuration with `repo-fixer init`. The optional `repo-fixer.yml` file can control which starter-file categories are included in the generation plan. For example:
 
 ```yaml
 generate:

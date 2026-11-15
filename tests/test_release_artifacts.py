@@ -430,13 +430,17 @@ py-modules = ["tiny_release_probe"]
 
 
 def test_real_build_produces_wheel_and_sdist_without_modifying_checkout(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     if importlib.util.find_spec("pip") is None:
         pytest.skip(
             "real build requires pip; setuptools and wheel are provisioned "
             "inside the isolated build environment"
         )
+
+    for name in tuple(os.environ):
+        if name.startswith("COV_CORE_") or name == "COVERAGE_PROCESS_START":
+            monkeypatch.delenv(name, raising=False)
 
     checkout = tmp_path / "tiny-project"
     artifacts = tmp_path / "artifacts"

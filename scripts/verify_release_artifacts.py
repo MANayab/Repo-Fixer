@@ -602,9 +602,10 @@ def verify_release(
             validate_wheel_artifact(artifact, expected_name, expected_version)
         else:
             validate_sdist_artifact(artifact, expected_name, expected_version)
-        install_phase = (
-            "Installing wheel..." if artifact.suffix == ".whl" else "Installing sdist..."
-        )
+        if artifact.suffix == ".whl":
+            install_phase = "Installing wheel..."
+        else:
+            install_phase = "Installing sdist..."
         print(install_phase, flush=True)
         install_and_smoke(
             artifact,

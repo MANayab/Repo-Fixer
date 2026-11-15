@@ -512,7 +512,6 @@ def test_sdist_build_failure_names_step_and_includes_output(
     assert "simulated sdist stderr" in str(error.value)
 
 
-
 def make_wheel_with_layout(
     path: Path,
     filename: str,
@@ -693,9 +692,7 @@ def test_repo_fixer_wheel_rejects_non_unique_canonical_metadata(
         canonical_directories,
         nested,
     )
-    with pytest.raises(
-        verifier.VerificationError, match="repo_fixer-0.3.1.*canonical"
-    ):
+    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1.*canonical"):
         verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
 
 
@@ -715,9 +712,7 @@ def test_repo_fixer_wheel_rejects_canonical_directory_disagreement(
         "repo_fixer-0.3.1-py3-none-any.whl",
         [(directory, name, version)],
     )
-    with pytest.raises(
-        verifier.VerificationError, match="repo_fixer-0.3.1.*directory"
-    ):
+    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1.*directory"):
         verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
 
 

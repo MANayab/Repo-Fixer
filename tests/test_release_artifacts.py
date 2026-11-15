@@ -566,7 +566,9 @@ def test_wheelhouse_rejects_two_top_level_dist_info_directories(
             ("other-1.0.dist-info", "other", "1.0"),
         ],
     )
-    with pytest.raises(verifier.VerificationError, match="setuptools-84.2.1.*canonical"):
+    with pytest.raises(
+        verifier.VerificationError, match="setuptools-84.2.1.*canonical"
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -597,7 +599,9 @@ def test_wheelhouse_rejects_canonical_directory_metadata_mismatch(
         "setuptools-84.2.1-py3-none-any.whl",
         [(directory, metadata_name, metadata_version)],
     )
-    with pytest.raises(verifier.VerificationError, match="setuptools-84.2.1.*directory"):
+    with pytest.raises(
+        verifier.VerificationError, match="setuptools-84.2.1.*directory"
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -687,7 +691,9 @@ def test_repo_fixer_wheel_rejects_non_unique_canonical_metadata(
         canonical_directories,
         nested,
     )
-    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1.*canonical"):
+    with pytest.raises(
+        verifier.VerificationError, match="repo_fixer-0.3.1.*canonical"
+    ):
         verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
 
 
@@ -707,7 +713,9 @@ def test_repo_fixer_wheel_rejects_canonical_directory_disagreement(
         "repo_fixer-0.3.1-py3-none-any.whl",
         [(directory, name, version)],
     )
-    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1.*directory"):
+    with pytest.raises(
+        verifier.VerificationError, match="repo_fixer-0.3.1.*directory"
+    ):
         verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
 
 

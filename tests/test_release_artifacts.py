@@ -510,3 +510,285 @@ def test_sdist_build_failure_names_step_and_includes_output(
 
     assert "backend stdout" in str(error.value)
     assert "simulated sdist stderr" in str(error.value)
+
+
+def make_wheel_with_layout(
+    path: Path,
+    filename: str,
+    canonical_directories: list[tuple[str, str, str]],
+    nested_metadata: list[tuple[str, str, str]] | None = None,
+) -> Path:
+    """Create a wheel with canonical and/or vendored nested dist-info metadata."""
+    path.mkdir(parents=True, exist_ok=True)
+    wheel_path = path / filename
+    with zipfile.ZipFile(wheel_path, "w") as archive:
+        for directory, name, version in canonical_directories:
+            archive.writestr(
+                f"{directory}/METADATA",
+                f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n",
+            )
+        for directory, name, version in nested_metadata or []:
+            archive.writestr(
+                f"setuptools/_vendor/{directory}/METADATA",
+                f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n",
+            )
+    return wheel_path
+
+
+def test_wheelhouse_uses_canonical_metadata_and_ignores_vendored_metadata(
+    tmp_path: Path,
+) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-84.2.1-py3-none-any.whl",
+        [("setuptools-84.2.1.dist-info", "setuptools", "84.2.1")],
+        [("packaging-26.3.dist-info", "not-setuptools", "999.0")],
+    )
+    make_wheel_with_layout(
+        tmp_path,
+        "wheel-0.46.3-py3-none-any.whl",
+        [("wheel-0.46.3.dist-info", "wheel", "0.46.3")],
+    )
+    found = verifier.validate_wheelhouse(tmp_path)
+    assert set(found) == {"setuptools", "wheel"}
+    assert found["setuptools"].name == "setuptools-84.2.1-py3-none-any.whl"
+
+
+def test_wheelhouse_rejects_two_top_level_dist_info_directories(
+    tmp_path: Path,
+) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-84.2.1-py3-none-any.whl",
+        [
+            ("setuptools-84.2.1.dist-info", "setuptools", "84.2.1"),
+            ("other-1.0.dist-info", "other", "1.0"),
+        ],
+    )
+    with pytest.raises(
+        verifier.VerificationError, match="setuptools-84.2.1.*canonical"
+    ):
+        verifier.validate_wheelhouse(tmp_path)
+
+
+def test_wheelhouse_rejects_only_nested_dist_info_metadata(tmp_path: Path) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-84.2.1-py3-none-any.whl",
+        [],
+        [("setuptools-84.2.1.dist-info", "setuptools", "84.2.1")],
+    )
+    with pytest.raises(
+        verifier.VerificationError, match="setuptools-84.2.1.*canonical"
+    ):
+        verifier.validate_wheelhouse(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("directory", "metadata_name", "metadata_version"),
+    [
+        ("setuptools-84.2.1.dist-info", "setuptools", "84.2.2"),
+        ("setuptools-84.2.2.dist-info", "setuptools", "84.2.1"),
+        ("other-84.2.1.dist-info", "setuptools", "84.2.1"),
+    ],
+    ids=[
+        "metadata-version-disagrees",
+        "directory-version-disagrees",
+        "directory-name-disagrees",
+    ],
+)
+def test_wheelhouse_rejects_canonical_directory_metadata_mismatch(
+    tmp_path: Path, directory: str, metadata_name: str, metadata_version: str
+) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-84.2.1-py3-none-any.whl",
+        [(directory, metadata_name, metadata_version)],
+    )
+    with pytest.raises(
+        verifier.VerificationError, match="setuptools-84.2.1.*directory"
+    ):
+        verifier.validate_wheelhouse(tmp_path)
+
+
+def test_wheelhouse_rejects_metadata_name_different_from_dependency(
+    tmp_path: Path,
+) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-84.2.1-py3-none-any.whl",
+        [("setuptools-84.2.1.dist-info", "not-setuptools", "84.2.1")],
+    )
+    with pytest.raises(verifier.VerificationError, match="setuptools-84.2.1"):
+        verifier.validate_wheelhouse(tmp_path)
+
+
+def test_wheelhouse_rejects_setuptools_below_minimum(tmp_path: Path) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-67.9.0-py3-none-any.whl",
+        [("setuptools-67.9.0.dist-info", "setuptools", "67.9.0")],
+    )
+    make_wheel_with_layout(
+        tmp_path,
+        "wheel-0.46.3-py3-none-any.whl",
+        [("wheel-0.46.3.dist-info", "wheel", "0.46.3")],
+    )
+    with pytest.raises(verifier.VerificationError, match="68"):
+        verifier.validate_wheelhouse(tmp_path)
+
+
+def test_wheelhouse_accepts_parseable_wheel_version_without_minimum(
+    tmp_path: Path,
+) -> None:
+    make_wheel_with_layout(
+        tmp_path,
+        "setuptools-84.2.1-py3-none-any.whl",
+        [("setuptools-84.2.1.dist-info", "setuptools", "84.2.1")],
+    )
+    make_wheel_with_layout(
+        tmp_path,
+        "wheel-0.1-py3-none-any.whl",
+        [("wheel-0.1.dist-info", "wheel", "0.1")],
+    )
+    found = verifier.validate_wheelhouse(tmp_path)
+    assert found["wheel"].name == "wheel-0.1-py3-none-any.whl"
+
+
+def test_wheelhouse_rejects_corrupt_well_named_wheel(tmp_path: Path) -> None:
+    corrupt = tmp_path / "setuptools-84.2.1-py3-none-any.whl"
+    corrupt.write_bytes(b"not a ZIP archive")
+    with pytest.raises(verifier.VerificationError, match="setuptools-84.2.1"):
+        verifier.validate_wheelhouse(tmp_path)
+
+
+def test_repo_fixer_wheel_uses_canonical_metadata_and_ignores_nested(
+    tmp_path: Path,
+) -> None:
+    wheel = make_wheel_with_layout(
+        tmp_path,
+        "repo_fixer-0.3.1-py3-none-any.whl",
+        [("repo_fixer-0.3.1.dist-info", "repo-fixer", "0.3.1")],
+        [("vendored-9.9.dist-info", "unrelated-vendor", "9.9")],
+    )
+    metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
+    assert metadata == {"Name": "repo-fixer", "Version": "0.3.1"}
+
+
+@pytest.mark.parametrize(
+    "canonical_directories",
+    [
+        [
+            ("repo_fixer-0.3.1.dist-info", "repo-fixer", "0.3.1"),
+            ("other-1.0.dist-info", "other", "1.0"),
+        ],
+        [],
+    ],
+    ids=["multiple-canonical", "nested-only"],
+)
+def test_repo_fixer_wheel_rejects_non_unique_canonical_metadata(
+    tmp_path: Path,
+    canonical_directories: list[tuple[str, str, str]],
+) -> None:
+    nested = [("vendor-9.9.dist-info", "vendor", "9.9")]
+    wheel = make_wheel_with_layout(
+        tmp_path,
+        "repo_fixer-0.3.1-py3-none-any.whl",
+        canonical_directories,
+        nested,
+    )
+    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1.*canonical"):
+        verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
+
+
+@pytest.mark.parametrize(
+    ("directory", "name", "version"),
+    [
+        ("repo_fixer-0.3.1.dist-info", "repo-fixer", "0.3.2"),
+        ("repo_fixer-0.3.2.dist-info", "repo-fixer", "0.3.1"),
+    ],
+    ids=["version-disagrees", "directory-disagrees"],
+)
+def test_repo_fixer_wheel_rejects_canonical_directory_disagreement(
+    tmp_path: Path, directory: str, name: str, version: str
+) -> None:
+    wheel = make_wheel_with_layout(
+        tmp_path,
+        "repo_fixer-0.3.1-py3-none-any.whl",
+        [(directory, name, version)],
+    )
+    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1.*directory"):
+        verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
+
+
+def test_repo_fixer_wheel_rejects_metadata_name_mismatch(tmp_path: Path) -> None:
+    wheel = make_wheel_with_layout(
+        tmp_path,
+        "repo_fixer-0.3.1-py3-none-any.whl",
+        [("repo_fixer-0.3.1.dist-info", "other-project", "0.3.1")],
+    )
+    with pytest.raises(verifier.VerificationError, match="repo_fixer-0.3.1"):
+        verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
+
+
+def test_real_offline_build_wheel_passes_canonical_metadata_rule(
+    tmp_path: Path,
+) -> None:
+    wheelhouse = Path(os.environ.get("REPO_FIXER_TEST_WHEELHOUSE", ""))
+    if not wheelhouse.is_dir():
+        pytest.skip(
+            "offline build-tool wheelhouse unavailable; set "
+            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing setuptools>=68 "
+            "and wheel wheels"
+        )
+    try:
+        verifier.validate_wheelhouse(wheelhouse)
+    except verifier.VerificationError as exc:
+        pytest.skip(f"offline build tools unavailable: {exc}")
+
+    checkout = tmp_path / "tiny-project"
+    artifacts = tmp_path / "artifacts"
+    _write_tiny_setuptools_project(checkout)
+    wheels, _sdists = verifier.build_artifacts(
+        checkout, artifacts, wheelhouse=wheelhouse, no_index=True
+    )
+    assert len(wheels) == 1
+    metadata = verifier.validate_wheel_artifact(
+        wheels[0], "tiny-release-probe", "1.2.3"
+    )
+    assert metadata == {"Name": "tiny-release-probe", "Version": "1.2.3"}
+
+
+def test_sdist_rejects_wrong_metadata_name(tmp_path: Path) -> None:
+    sdist = make_sdist(tmp_path, "other-project", "0.3.1")
+    with pytest.raises(verifier.VerificationError, match="expected distribution"):
+        verifier.validate_sdist_artifact(sdist, "repo-fixer", "0.3.1")
+
+
+def test_sdist_rejects_wrong_metadata_version(tmp_path: Path) -> None:
+    sdist = make_sdist(tmp_path, "repo-fixer", "0.3.2")
+    with pytest.raises(verifier.VerificationError, match="expected version"):
+        verifier.validate_sdist_artifact(sdist, "repo-fixer", "0.3.1")
+
+
+def test_sdist_rejects_missing_root_pkg_info(tmp_path: Path) -> None:
+    archive_path = tmp_path / "repo-fixer-0.3.1.tar.gz"
+    info = tarfile.TarInfo("repo-fixer-0.3.1/nested/PKG-INFO")
+    data = b"Metadata-Version: 2.1\nName: repo-fixer\nVersion: 0.3.1\n\n"
+    info.size = len(data)
+    with tarfile.open(archive_path, "w:gz") as archive:
+        archive.addfile(info, io.BytesIO(data))
+    with pytest.raises(verifier.VerificationError, match="exactly one PKG-INFO"):
+        verifier.validate_sdist_artifact(archive_path, "repo-fixer", "0.3.1")
+
+
+def test_repo_fixer_wheel_directory_name_uses_pep503_normalization(
+    tmp_path: Path,
+) -> None:
+    wheel = make_wheel_with_layout(
+        tmp_path,
+        "repo_fixer-0.3.1-py3-none-any.whl",
+        [("Repo.Fixer-0.3.1.dist-info", "Repo.Fixer", "0.3.1")],
+    )
+    metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
+    assert metadata == {"Name": "Repo.Fixer", "Version": "0.3.1"}

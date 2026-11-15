@@ -20,7 +20,7 @@ import zipfile
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from email.parser import Parser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from pip._vendor.packaging.utils import canonicalize_name, parse_wheel_filename
 from pip._vendor.packaging.version import InvalidVersion, Version
@@ -131,7 +131,9 @@ def validate_sdist_artifact(
             members = [
                 member
                 for member in all_members
-                if member.isfile() and Path(member.name).name == "PKG-INFO"
+                if member.isfile()
+                and PurePosixPath(member.name).name == "PKG-INFO"
+                and len(PurePosixPath(member.name).parts) == 2
             ]
             if len(members) != 1:
                 raise VerificationError(

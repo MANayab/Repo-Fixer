@@ -506,4 +506,3 @@ def test_sdist_build_failure_names_step_and_includes_output(
 
     assert "backend stdout" in str(error.value)
     assert "simulated sdist stderr" in str(error.value)
-

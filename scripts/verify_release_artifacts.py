@@ -74,15 +74,23 @@ def _canonical_wheel_metadata(
 
     metadata_path = canonical_files[0]
     metadata = _metadata_from_bytes(archive.read(metadata_path.as_posix()), wheel_path)
-    expected_directory = (
-        f"{canonicalize_name(metadata['Name']).replace('-', '_')}-"
-        f"{Version(metadata['Version'])}.dist-info"
-    )
-    if metadata_path.parts[0] != expected_directory:
+    directory_stem = metadata_path.parts[0][: -len(".dist-info")]
+    directory_name, separator, directory_version = directory_stem.rpartition("-")
+    try:
+        directory_version_matches = (
+            bool(separator)
+            and Version(directory_version) == Version(metadata["Version"])
+        )
+    except InvalidVersion:
+        directory_version_matches = False
+    if not (
+        directory_name
+        and _same_distribution(directory_name, metadata["Name"])
+        and directory_version_matches
+    ):
         raise VerificationError(
-            f"{wheel_path.name}: canonical directory rule failed; expected "
-            f"{expected_directory!r} from embedded Name and Version, "
-            f"found {metadata_path.parts[0]!r}"
+            f"{wheel_path.name}: canonical directory rule failed; directory "
+            f"{metadata_path.parts[0]!r} disagrees with embedded Name and Version"
         )
     return metadata
 
@@ -594,10 +602,10 @@ def verify_release(
             validate_wheel_artifact(artifact, expected_name, expected_version)
         else:
             validate_sdist_artifact(artifact, expected_name, expected_version)
-        print(
-            "Installing wheel..." if artifact.suffix == ".whl" else "Installing sdist...",
-            flush=True,
+        install_phase = (
+            "Installing wheel..." if artifact.suffix == ".whl" else "Installing sdist..."
         )
+        print(install_phase, flush=True)
         install_and_smoke(
             artifact,
             checkout=checkout,

@@ -77,10 +77,9 @@ def _canonical_wheel_metadata(
     directory_stem = metadata_path.parts[0][: -len(".dist-info")]
     directory_name, separator, directory_version = directory_stem.rpartition("-")
     try:
-        directory_version_matches = (
-            bool(separator)
-            and Version(directory_version) == Version(metadata["Version"])
-        )
+        directory_version_matches = bool(separator) and Version(
+            directory_version
+        ) == Version(metadata["Version"])
     except InvalidVersion:
         directory_version_matches = False
     if not (

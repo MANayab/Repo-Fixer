@@ -534,9 +534,7 @@ def build_artifacts(
             "setuptools>=68",
             "wheel",
         ]
-        _run_build_step(
-            "Source distribution build", install_build_requirements
-        )
+        _run_build_step("Source distribution build", install_build_requirements)
         sdist_script = (
             "import sys\n"
             "from setuptools.build_meta import build_sdist\n"
@@ -548,9 +546,7 @@ def build_artifacts(
             sdist_script,
             str(artifact_dir),
         ]
-        _run_build_step(
-            "Source distribution build", sdist_command, cwd=sdist_source
-        )
+        _run_build_step("Source distribution build", sdist_command, cwd=sdist_source)
 
     name, version = _project_identity(Path(checkout) / "pyproject.toml")
     return validate_existing_artifacts(artifact_dir, name, version)

@@ -410,14 +410,17 @@ def test_cleanup_safety_handles_windows_style_separators_via_pathlib(
 def _write_tiny_setuptools_project(checkout: Path) -> None:
     checkout.mkdir(parents=True, exist_ok=True)
     (checkout / "pyproject.toml").write_text(
-        '[build-system]\n'
-        'requires = ["setuptools>=68", "wheel"]\n'
-        'build-backend = "setuptools.build_meta"\n\n'
-        '[project]\n'
-        'name = "tiny-release-probe"\n'
-        'version = "1.2.3"\n\n'
-        '[tool.setuptools]\n'
-        'py-modules = ["tiny_release_probe"]\n',
+        """[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiny-release-probe"
+version = "1.2.3"
+
+[tool.setuptools]
+py-modules = ["tiny_release_probe"]
+""",
         encoding="utf-8",
     )
     (checkout / "tiny_release_probe.py").write_text(

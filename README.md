@@ -33,6 +33,8 @@ Requires Python 3.11 or newer.
 ### Windows PowerShell
 
 ```powershell
+git clone https://github.com/MANayab/Repo-Fixer.git
+Set-Location Repo-Fixer
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -52,6 +54,8 @@ If PowerShell blocks virtual-environment activation, use the Python executable d
 ### macOS / Linux
 
 ```bash
+git clone https://github.com/MANayab/Repo-Fixer.git
+cd Repo-Fixer
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip

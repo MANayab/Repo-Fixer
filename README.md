@@ -171,5 +171,5 @@ Repo Fixer is licensed under the MIT License. See [LICENSE](LICENSE).
 
   Before a release, use the release verifier to build, validate, install, and smoke-test the wheel and source distribution. The guide covers normal, wheelhouse-assisted, and offline modes.
 
-  [Read the release integrity guide](https://github.com/MANayab/Repo-Fixer/blob/0b2033fb0685eda4ef156f02f49c9400523b0fb5/docs/release-integrity.md).
+  [Read the release integrity guide](docs/release-integrity.md).
 </details>

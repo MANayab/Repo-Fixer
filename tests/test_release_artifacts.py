@@ -817,4 +817,9 @@ def test_repo_fixer_wheel_directory_name_uses_pep503_normalization(
         [("Repo.Fixer-0.3.1.dist-info", "Repo.Fixer", "0.3.1")],
     )
     metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
-    assert metadata == {"Name": "Repo.Fixer", "Version": "0.3.1"}
+    assert metadata == {
+        "Name": "Repo.Fixer",
+        "Version": "0.3.1",
+        "License-Expression": "MIT",
+        "License-File": "LICENSE",
+    }

@@ -70,10 +70,19 @@ Before publishing:
 1. Confirm both the wheel and sdist are present and correspond to the version selected in `pyproject.toml`.
 2. Inspect the wheel's `.dist-info/METADATA` and confirm the SPDX `License-Expression`, `License-File`, and packaged license file are present.
 3. Inspect the sdist's root `PKG-INFO` and confirm its `LICENSE` file is present.
-4. Verify the `.sha256` sidecars against the exact artifact files. On Windows:
+4. Verify each `.sha256` sidecar against its exact artifact file. On Windows:
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\artifacts-normal\*.whl
-   Get-FileHash -Algorithm SHA256 .\artifacts-normal\*.tar.gz
+   Get-ChildItem .\artifacts-normal -Filter "*.sha256" | ForEach-Object {
+       $artifact = $_.FullName.Substring(0, $_.FullName.Length - ".sha256".Length)
+       $expected = ((Get-Content $_.FullName -Raw).Trim() -split "\s+")[0]
+       $actual = (Get-FileHash -Algorithm SHA256 $artifact).Hash.ToLowerInvariant()
+       if ($actual -ne $expected) { throw "Checksum mismatch: $artifact" }
+       Write-Host "VERIFIED $artifact"
+   }
+   ```
+   On macOS/Linux:
+   ```bash
+   (cd artifacts-normal && sha256sum --check ./*.sha256)
    ```
 5. Preserve the verified files. Do not rebuild after verification and then upload a different artifact under the same release.
 

@@ -242,3 +242,90 @@ def test_stdin_isatty_handles_interactive_noninteractive_and_missing(
     assert cli_module._stdin_isatty() is False
     monkeypatch.setattr(cli_module.sys, "stdin", None)
     assert cli_module._stdin_isatty() is False
+
+
+def test_fix_prompts_when_license_selection_is_required(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selection = (
+        "LICENSE — selection required; choose MIT, Apache-2.0, "
+        "BSD-3-Clause, or GPL-3.0-only"
+    )
+    build_calls: list[str | None] = []
+    prompts: list[str] = []
+
+    def fake_build_plan(repository, *, license_name=None, **kwargs):
+        build_calls.append(license_name)
+        skipped = (selection,) if license_name is None else ()
+        return FixPlan(repository, (), (), skipped, ())
+
+    monkeypatch.setattr(cli_module, "build_plan", fake_build_plan)
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: True)
+
+    def fake_prompt(*args, **kwargs):
+        prompts.append(args[0])
+        return "MIT"
+
+    monkeypatch.setattr(cli_module.click, "prompt", fake_prompt)
+    monkeypatch.setattr(cli_module, "apply_plan", lambda *args, **kwargs: ([], []))
+
+    result = CliRunner().invoke(
+        main, ["fix", "--yes", "--path", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert prompts == ["Choose a license"]
+    assert build_calls == [None, "MIT"]
+
+
+def test_fix_reports_license_selection_when_stdin_is_not_a_tty(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selection = (
+        "LICENSE — selection required; choose MIT, Apache-2.0, "
+        "BSD-3-Clause, or GPL-3.0-only"
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "build_plan",
+        lambda repository, **kwargs: FixPlan(repository, (), (), (selection,), ()),
+    )
+    monkeypatch.setattr(cli_module, "_stdin_isatty", lambda: False)
+    monkeypatch.setattr(
+        cli_module.click,
+        "prompt",
+        lambda *args, **kwargs: pytest.fail("non-interactive mode must not prompt"),
+    )
+
+    result = CliRunner().invoke(
+        main, ["fix", "--yes", "--path", str(tmp_path)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "LICENSE not generated: choose one with --license." in result.output
+
+
+def test_scan_findings_render_a_real_em_dash(tmp_path) -> None:
+    result = CliRunner().invoke(main, ["scan", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert " — " in result.output
+    assert "â€" not in result.output
+    assert "Ã" not in result.output
+
+
+def test_repo_fixer_source_has_no_mojibake_sequences() -> None:
+    root = Path(__file__).resolve().parents[1] / "repo_fixer"
+    markers = ("â€", "Ã¢", "Ã©", "Â ")
+    hits: list[str] = []
+
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            if any(marker in line for marker in markers):
+                hits.append(f"{path.relative_to(root)}:{line_number}: {line}")
+
+    assert not hits, "\\n".join(hits)

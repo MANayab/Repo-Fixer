@@ -46,15 +46,15 @@ def make_wheel(
         metadata_lines.append(f"License-Expression: {license_expression}")
     if declare_license_file:
         metadata_lines.append("License-File: LICENSE")
-    metadata = "\\n".join(metadata_lines) + "\\n\\n"
+    metadata = "\n".join(metadata_lines) + "\n\n"
     with zipfile.ZipFile(wheel_path, "w") as archive:
         archive.writestr(f"{dist_info}/METADATA", metadata)
         if include_license:
-            archive.writestr(f"{dist_info}/licenses/LICENSE", "MIT License\\n")
+            archive.writestr(f"{dist_info}/licenses/LICENSE", "MIT License\n")
         archive.writestr(
             f"{dist_info}/WHEEL",
-            "Wheel-Version: 1.0\\nGenerator: pytest\\nRoot-Is-Purelib: true\\n"
-            "Tag: py3-none-any\\n",
+            "Wheel-Version: 1.0\nGenerator: pytest\nRoot-Is-Purelib: true\n"
+            "Tag: py3-none-any\n",
         )
     return wheel_path
 
@@ -80,13 +80,13 @@ def make_sdist(
         metadata_lines.append(f"License-Expression: {license_expression}")
     if declare_license_file:
         metadata_lines.append("License-File: LICENSE")
-    data = ("\\n".join(metadata_lines) + "\\n\\n").encode()
+    data = ("\n".join(metadata_lines) + "\n\n").encode()
     info.size = len(data)
     with tarfile.open(archive_path, "w:gz") as archive:
         archive.addfile(info, io.BytesIO(data))
         if include_license:
             license_info = tarfile.TarInfo(f"{name}-{version}/LICENSE")
-            license_data = b"MIT License\\n"
+            license_data = b"MIT License\n"
             license_info.size = len(license_data)
             archive.addfile(license_info, io.BytesIO(license_data))
     return archive_path

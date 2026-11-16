@@ -105,9 +105,13 @@ def _validate_license_metadata(
     metadata: dict[str, str], *, license_present: bool, source: Path
 ) -> None:
     if metadata.get("License-Expression") != "MIT":
-        raise VerificationError(f"{source}: expected License-Expression metadata 'MIT'")
+        raise VerificationError(
+            f"{source}: expected License-Expression metadata 'MIT'"
+        )
     if "LICENSE" not in metadata.get("License-File", "").splitlines():
-        raise VerificationError(f"{source}: metadata must declare License-File: LICENSE")
+        raise VerificationError(
+            f"{source}: metadata must declare License-File: LICENSE"
+        )
     if not license_present:
         raise VerificationError(f"{source}: packaged LICENSE file is missing")
 
@@ -137,15 +141,18 @@ def validate_wheel_artifact(
     except (InvalidVersion, ValueError) as exc:
         raise VerificationError(f"{wheel_path}: invalid wheel filename: {exc}") from exc
 
-    _validate_license_metadata(
-        metadata,
-        license_present=any(
+    with zipfile.ZipFile(wheel_path) as archive:
+        license_present = any(
             len(PurePosixPath(member).parts) >= 3
             and PurePosixPath(member).parts[-2:] == ("licenses", "LICENSE")
-            and any(part.endswith(".dist-info") for part in PurePosixPath(member).parts[:-2])
-            for member in zipfile.ZipFile(wheel_path).namelist()
-        ),
-        source=wheel_path,
+            and any(
+                part.endswith(".dist-info")
+                for part in PurePosixPath(member).parts[:-2]
+            )
+            for member in archive.namelist()
+        )
+    _validate_license_metadata(
+        metadata, license_present=license_present, source=wheel_path
     )
     if not _same_distribution(str(filename_name), metadata["Name"]):
         raise VerificationError(
@@ -206,7 +213,9 @@ def validate_sdist_artifact(
                 member.isfile() and PurePosixPath(member.name).parts == (root, "LICENSE")
                 for member in all_members
             )
-            _validate_license_metadata(metadata, license_present=license_present, source=sdist_path)
+            _validate_license_metadata(
+                metadata, license_present=license_present, source=sdist_path
+            )
     except (OSError, tarfile.TarError, EOFError) as exc:
         raise VerificationError(f"{sdist_path}: unreadable sdist: {exc}") from exc
 

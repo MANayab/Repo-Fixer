@@ -19,7 +19,7 @@ repo-fixer scan
 repo-fixer fix --dry-run
 ```
 
-## Optional GitHub pull requests
+See the [project roadmap](../ROADMAP.md) for shipped work and proposed next steps.\n\n## Optional GitHub pull requests
 
 Set a fine-grained `GITHUB_TOKEN` with Contents read/write and Pull requests read/write permissions for the target repository, then run `repo-fixer fix --create-pr`. Repo Fixer proposes additions on a separate branch and opens a pull request for human review. It never pushes to the default branch or merges automatically.
 

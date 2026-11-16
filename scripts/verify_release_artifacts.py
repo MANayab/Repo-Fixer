@@ -105,7 +105,7 @@ def _validate_license_metadata(
     metadata: dict[str, str], *, license_present: bool, source: Path
 ) -> None:
     if metadata.get("License-Expression") != "MIT":
-        raise VerificationError(f"{source}: expected License-Expression metadata 'MIT')
+        raise VerificationError(f"{source}: expected License-Expression metadata 'MIT'")
     if "LICENSE" not in metadata.get("License-File", "").splitlines():
         raise VerificationError(
             f"{source}: metadata must declare License-File: LICENSE"

@@ -270,9 +270,7 @@ def test_fix_prompts_when_license_selection_is_required(
     monkeypatch.setattr(cli_module.click, "prompt", fake_prompt)
     monkeypatch.setattr(cli_module, "apply_plan", lambda *args, **kwargs: ([], []))
 
-    result = CliRunner().invoke(
-        main, ["fix", "--yes", "--path", str(tmp_path)]
-    )
+    result = CliRunner().invoke(main, ["fix", "--yes", "--path", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
     assert prompts == ["Choose a license"]
@@ -298,9 +296,7 @@ def test_fix_reports_license_selection_when_stdin_is_not_a_tty(
         lambda *args, **kwargs: pytest.fail("non-interactive mode must not prompt"),
     )
 
-    result = CliRunner().invoke(
-        main, ["fix", "--yes", "--path", str(tmp_path)]
-    )
+    result = CliRunner().invoke(main, ["fix", "--yes", "--path", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
     assert "LICENSE not generated: choose one with --license." in result.output

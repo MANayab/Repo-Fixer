@@ -100,7 +100,7 @@ Both `scan` and `score` accept an optional repository path and `--format text|js
 - Writes are confined to the selected repository root; symlink targets are rejected.
 - GitHub changes are additions-only on a uniquely named feature branch. Repo Fixer does not push to the default branch, force-push, delete files, or merge pull requests.
 
-Read the complete [safety guarantees](docs/safety.md) before using file generation on an important repository.
+Read the complete [safety guarantees](docs/safety.md) before using file generation on an important repository.\n\nSee the [project roadmap](ROADMAP.md) for shipped work and proposed next steps.
 
 ## Optional GitHub pull requests
 

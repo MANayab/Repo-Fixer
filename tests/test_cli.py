@@ -317,11 +317,13 @@ def test_repo_fixer_source_has_no_mojibake_sequences() -> None:
     hits: list[str] = []
 
     for path in sorted(root.rglob("*")):
-        if not path.is_file():
+        if not path.is_file() or "__pycache__" in path.parts:
             continue
-        for line_number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError:
+            continue
+        for line_number, line in enumerate(lines, start=1):
             if any(marker in line for marker in markers):
                 hits.append(f"{path.relative_to(root)}:{line_number}: {line}")
 

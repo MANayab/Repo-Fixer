@@ -105,9 +105,7 @@ def _validate_license_metadata(
     metadata: dict[str, str], *, license_present: bool, source: Path
 ) -> None:
     if metadata.get("License-Expression") != "MIT":
-        raise VerificationError(
-            f"{source}: expected License-Expression metadata 'MIT'"
-        )
+        raise VerificationError(f"{source}: expected License-Expression metadata 'MIT')
     if "LICENSE" not in metadata.get("License-File", "").splitlines():
         raise VerificationError(
             f"{source}: metadata must declare License-File: LICENSE"
@@ -146,8 +144,7 @@ def validate_wheel_artifact(
             len(PurePosixPath(member).parts) >= 3
             and PurePosixPath(member).parts[-2:] == ("licenses", "LICENSE")
             and any(
-                part.endswith(".dist-info")
-                for part in PurePosixPath(member).parts[:-2]
+                part.endswith(".dist-info") for part in PurePosixPath(member).parts[:-2]
             )
             for member in archive.namelist()
         )

@@ -688,7 +688,12 @@ def test_repo_fixer_wheel_uses_canonical_metadata_and_ignores_nested(
         [("vendored-9.9.dist-info", "unrelated-vendor", "9.9")],
     )
     metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
-    assert metadata == {"Name": "repo-fixer", "Version": "0.3.1"}
+    assert metadata == {
+        "Name": "repo-fixer",
+        "Version": "0.3.1",
+        "License-Expression": "MIT",
+        "License-File": "LICENSE",
+    }
 
 
 @pytest.mark.parametrize(

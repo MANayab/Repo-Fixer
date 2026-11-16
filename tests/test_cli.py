@@ -4,6 +4,7 @@ import json
 import runpy
 import socket
 import sys
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner

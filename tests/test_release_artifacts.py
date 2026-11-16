@@ -428,6 +428,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tiny-release-probe"
 version = "1.2.3"
+license = "MIT"
+license-files = ["LICENSE"]
 
 [tool.setuptools]
 py-modules = ["tiny_release_probe"]
@@ -770,7 +772,12 @@ def test_real_offline_build_wheel_passes_canonical_metadata_rule(
     metadata = verifier.validate_wheel_artifact(
         wheels[0], "tiny-release-probe", "1.2.3"
     )
-    assert metadata == {"Name": "tiny-release-probe", "Version": "1.2.3"}
+    assert metadata == {
+        "Name": "tiny-release-probe",
+        "Version": "1.2.3",
+        "License-Expression": "MIT",
+        "License-File": "LICENSE",
+    }
 
 
 def test_sdist_rejects_wrong_metadata_name(tmp_path: Path) -> None:

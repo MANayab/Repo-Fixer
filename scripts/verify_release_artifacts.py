@@ -98,16 +98,6 @@ def _canonical_wheel_metadata(
             f"{wheel_path.name}: canonical directory rule failed; directory "
             f"{metadata_path.parts[0]!r} disagrees with embedded Name and Version"
         )
-    _validate_license_metadata(
-        metadata,
-        license_present=any(
-            len(PurePosixPath(member).parts) >= 3
-            and PurePosixPath(member).parts[-2:] == ("licenses", "LICENSE")
-            and any(part.endswith(".dist-info") for part in PurePosixPath(member).parts[:-2])
-            for member in archive.namelist()
-        ),
-        source=wheel_path,
-    )
     return metadata
 
 

@@ -151,7 +151,7 @@ def fix(
             and license_name is None
             and any(
 item.startswith(
-    "LICENSE â€” selection required"
+    "LICENSE \u2014 selection required"
 )
 for item in plan.skipped            )
         ):
@@ -341,7 +341,7 @@ def _render_report(report: AuditReport, output_format: str) -> None:
     click.echo("\nFindings:")
     for item in report.findings:
         click.echo(
-            f"- [{item.severity.upper()}] {item.check_id} Ã¢â‚¬â€ {item.affected_file}"
+            f"- [{item.severity.upper()}] {item.check_id} \u2014 {item.affected_file}"
         )
         click.echo(f"  Evidence: {item.evidence}")
         click.echo(f"  Recommendation: {item.recommendation}")

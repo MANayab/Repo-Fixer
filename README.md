@@ -102,6 +102,8 @@ Both `scan` and `score` accept an optional repository path and `--format text|js
 
 Read the complete [safety guarantees](docs/safety.md) before using file generation on an important repository.
 
+See the [project roadmap](ROADMAP.md) for shipped work and proposed next steps.
+
 ## Optional GitHub pull requests
 
 GitHub integration is optional. Set `GITHUB_TOKEN` to a fine-grained token restricted to the target repository with:

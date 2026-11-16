@@ -210,7 +210,8 @@ def validate_sdist_artifact(
             metadata = _metadata_from_bytes(stream.read(), sdist_path)
             root = PurePosixPath(members[0].name).parts[0]
             license_present = any(
-                member.isfile() and PurePosixPath(member.name).parts == (root, "LICENSE")
+                member.isfile()
+                and PurePosixPath(member.name).parts == (root, "LICENSE")
                 for member in all_members
             )
             _validate_license_metadata(

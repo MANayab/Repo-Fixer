@@ -8,6 +8,7 @@ on:
       - "scripts/verify_release_artifacts.py"
       - "tests/test_release_artifacts.py"
       - "pyproject.toml"
+      - "MANIFEST*"
       - "requirements*.txt"
       - "repo_fixer/**"
   push:

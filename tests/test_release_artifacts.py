@@ -114,17 +114,28 @@ def test_wheel_integrity_and_metadata_are_read_from_archive(tmp_path: Path) -> N
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "message"),
+    ("license_expression", "declare_license_file", "include_license", "message"),
     [
-        ({"license_expression": None}, "License-Expression"),
-        ({"declare_license_file": False}, "License-File"),
-        ({"include_license": False}, "packaged LICENSE"),
+        (None, True, True, "License-Expression"),
+        ("MIT", False, True, "License-File"),
+        ("MIT", True, False, "packaged LICENSE"),
     ],
 )
 def test_wheel_rejects_missing_license_component(
-    tmp_path: Path, kwargs: dict[str, object], message: str
+    tmp_path: Path,
+    license_expression: str | None,
+    declare_license_file: bool,
+    include_license: bool,
+    message: str,
 ) -> None:
-    wheel = make_wheel(tmp_path, "repo-fixer", "0.3.1", **kwargs)
+    wheel = make_wheel(
+        tmp_path,
+        "repo-fixer",
+        "0.3.1",
+        license_expression=license_expression,
+        declare_license_file=declare_license_file,
+        include_license=include_license,
+    )
     with pytest.raises(verifier.VerificationError, match=message):
         verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
 
@@ -159,17 +170,28 @@ def test_sdist_metadata_is_validated(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "message"),
+    ("license_expression", "declare_license_file", "include_license", "message"),
     [
-        ({"license_expression": None}, "License-Expression"),
-        ({"declare_license_file": False}, "License-File"),
-        ({"include_license": False}, "packaged LICENSE"),
+        (None, True, True, "License-Expression"),
+        ("MIT", False, True, "License-File"),
+        ("MIT", True, False, "packaged LICENSE"),
     ],
 )
 def test_sdist_rejects_missing_license_component(
-    tmp_path: Path, kwargs: dict[str, object], message: str
+    tmp_path: Path,
+    license_expression: str | None,
+    declare_license_file: bool,
+    include_license: bool,
+    message: str,
 ) -> None:
-    sdist = make_sdist(tmp_path, "repo-fixer", "0.3.1", **kwargs)
+    sdist = make_sdist(
+        tmp_path,
+        "repo-fixer",
+        "0.3.1",
+        license_expression=license_expression,
+        declare_license_file=declare_license_file,
+        include_license=include_license,
+    )
     with pytest.raises(verifier.VerificationError, match=message):
         verifier.validate_sdist_artifact(sdist, "repo-fixer", "0.3.1")
 

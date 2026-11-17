@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tarfile
+import tomllib
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -23,15 +24,33 @@ SPEC.loader.exec_module(verifier)
 
 
 def make_wheel(
-    path: Path, name: str, version: str, *, filename: str | None = None
+    path: Path,
+    name: str,
+    version: str,
+    *,
+    filename: str | None = None,
+    license_expression: str | None = "MIT",
+    declare_license_file: bool = True,
+    include_license: bool = True,
 ) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     wheel_distribution = name.replace("-", "_")
     wheel_path = path / (filename or f"{wheel_distribution}-{version}-py3-none-any.whl")
     dist_info = f"{name.replace('-', '_')}-{version}.dist-info"
-    metadata = f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n"
+    metadata_lines = [
+        "Metadata-Version: 2.4",
+        f"Name: {name}",
+        f"Version: {version}",
+    ]
+    if license_expression is not None:
+        metadata_lines.append(f"License-Expression: {license_expression}")
+    if declare_license_file:
+        metadata_lines.append("License-File: LICENSE")
+    metadata = "\n".join(metadata_lines) + "\n\n"
     with zipfile.ZipFile(wheel_path, "w") as archive:
         archive.writestr(f"{dist_info}/METADATA", metadata)
+        if include_license:
+            archive.writestr(f"{dist_info}/licenses/LICENSE", "MIT License\n")
         archive.writestr(
             f"{dist_info}/WHEEL",
             "Wheel-Version: 1.0\nGenerator: pytest\nRoot-Is-Purelib: true\n"
@@ -40,19 +59,41 @@ def make_wheel(
     return wheel_path
 
 
-def make_sdist(path: Path, name: str, version: str) -> Path:
+def make_sdist(
+    path: Path,
+    name: str,
+    version: str,
+    *,
+    license_expression: str | None = "MIT",
+    declare_license_file: bool = True,
+    include_license: bool = True,
+) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     archive_path = path / f"{name}-{version}.tar.gz"
     info = tarfile.TarInfo(f"{name}-{version}/PKG-INFO")
-    data = (f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n").encode()
+    metadata_lines = [
+        "Metadata-Version: 2.4",
+        f"Name: {name}",
+        f"Version: {version}",
+    ]
+    if license_expression is not None:
+        metadata_lines.append(f"License-Expression: {license_expression}")
+    if declare_license_file:
+        metadata_lines.append("License-File: LICENSE")
+    data = ("\n".join(metadata_lines) + "\n\n").encode()
     info.size = len(data)
     with tarfile.open(archive_path, "w:gz") as archive:
         archive.addfile(info, io.BytesIO(data))
+        if include_license:
+            license_info = tarfile.TarInfo(f"{name}-{version}/LICENSE")
+            license_data = b"MIT License\n"
+            license_info.size = len(license_data)
+            archive.addfile(license_info, io.BytesIO(license_data))
     return archive_path
 
 
 def valid_wheelhouse(path: Path) -> None:
-    make_wheel(path, "setuptools", "68.0.0")
+    make_wheel(path, "setuptools", "77.0.3")
     make_wheel(path, "wheel", "0.43.0")
 
 
@@ -66,6 +107,37 @@ def test_wheel_integrity_and_metadata_are_read_from_archive(tmp_path: Path) -> N
     metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
     assert metadata["Name"] == "repo-fixer"
     assert metadata["Version"] == "0.3.1"
+    assert metadata["License-Expression"] == "MIT"
+    assert metadata["License-File"] == "LICENSE"
+    with zipfile.ZipFile(wheel) as archive:
+        assert "repo_fixer-0.3.1.dist-info/licenses/LICENSE" in archive.namelist()
+
+
+@pytest.mark.parametrize(
+    ("license_expression", "declare_license_file", "include_license", "message"),
+    [
+        (None, True, True, "License-Expression"),
+        ("MIT", False, True, "License-File"),
+        ("MIT", True, False, "packaged LICENSE"),
+    ],
+)
+def test_wheel_rejects_missing_license_component(
+    tmp_path: Path,
+    license_expression: str | None,
+    declare_license_file: bool,
+    include_license: bool,
+    message: str,
+) -> None:
+    wheel = make_wheel(
+        tmp_path,
+        "repo-fixer",
+        "0.3.1",
+        license_expression=license_expression,
+        declare_license_file=declare_license_file,
+        include_license=include_license,
+    )
+    with pytest.raises(verifier.VerificationError, match=message):
+        verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
 
 
 def test_corrupt_well_named_wheel_is_rejected(tmp_path: Path) -> None:
@@ -80,7 +152,7 @@ def test_wheel_filename_must_agree_with_embedded_metadata(tmp_path: Path) -> Non
         tmp_path,
         "wheel",
         "0.43.0",
-        filename="setuptools-68.0.0-py3-none-any.whl",
+        filename="setuptools-77.0.3-py3-none-any.whl",
     )
     with pytest.raises(verifier.VerificationError, match="filename"):
         verifier.validate_wheel_artifact(wheel, "wheel", "0.43.0")
@@ -91,6 +163,37 @@ def test_sdist_metadata_is_validated(tmp_path: Path) -> None:
     metadata = verifier.validate_sdist_artifact(sdist, "repo-fixer", "0.3.1")
     assert metadata["Name"] == "repo-fixer"
     assert metadata["Version"] == "0.3.1"
+    assert metadata["License-Expression"] == "MIT"
+    assert metadata["License-File"] == "LICENSE"
+    with tarfile.open(sdist, mode="r:gz") as archive:
+        assert "repo-fixer-0.3.1/LICENSE" in archive.getnames()
+
+
+@pytest.mark.parametrize(
+    ("license_expression", "declare_license_file", "include_license", "message"),
+    [
+        (None, True, True, "License-Expression"),
+        ("MIT", False, True, "License-File"),
+        ("MIT", True, False, "packaged LICENSE"),
+    ],
+)
+def test_sdist_rejects_missing_license_component(
+    tmp_path: Path,
+    license_expression: str | None,
+    declare_license_file: bool,
+    include_license: bool,
+    message: str,
+) -> None:
+    sdist = make_sdist(
+        tmp_path,
+        "repo-fixer",
+        "0.3.1",
+        license_expression=license_expression,
+        declare_license_file=declare_license_file,
+        include_license=include_license,
+    )
+    with pytest.raises(verifier.VerificationError, match=message):
+        verifier.validate_sdist_artifact(sdist, "repo-fixer", "0.3.1")
 
 
 def test_invalid_existing_artifact_is_rejected_without_replacement(
@@ -111,7 +214,7 @@ def test_missing_setuptools_is_reported(tmp_path: Path) -> None:
 
 
 def test_missing_wheel_is_reported(tmp_path: Path) -> None:
-    make_wheel(tmp_path, "setuptools", "68.0.0")
+    make_wheel(tmp_path, "setuptools", "77.0.3")
     with pytest.raises(verifier.VerificationError, match="wheel"):
         verifier.validate_wheelhouse(tmp_path)
 
@@ -119,7 +222,7 @@ def test_missing_wheel_is_reported(tmp_path: Path) -> None:
 def test_old_setuptools_is_rejected(tmp_path: Path) -> None:
     make_wheel(tmp_path, "setuptools", "67.9.0")
     make_wheel(tmp_path, "wheel", "0.43.0")
-    with pytest.raises(verifier.VerificationError, match="68"):
+    with pytest.raises(verifier.VerificationError, match="77.0.3"):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -129,6 +232,26 @@ def test_wheelhouse_accepts_metadata_valid_build_dependencies(tmp_path: Path) ->
     assert set(result) == {"setuptools", "wheel"}
 
 
+def test_wheelhouse_accepts_newer_setuptools(tmp_path: Path) -> None:
+    make_wheel(tmp_path, "setuptools", "80.0.0")
+    make_wheel(tmp_path, "wheel", "0.43.0")
+
+    result = verifier.validate_wheelhouse(tmp_path)
+
+    assert result["setuptools"].name == "setuptools-80.0.0-py3-none-any.whl"
+
+
+def test_verifier_setuptools_floor_matches_pyproject() -> None:
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    requirement = next(
+        item
+        for item in project["build-system"]["requires"]
+        if item.startswith("setuptools")
+    )
+
+    assert requirement == f"setuptools>={verifier.MINIMUM_SETUPTOOLS}"
+
+
 def test_well_named_but_misleading_dependency_wheel_is_not_accepted(
     tmp_path: Path,
 ) -> None:
@@ -136,7 +259,7 @@ def test_well_named_but_misleading_dependency_wheel_is_not_accepted(
         tmp_path,
         "wheel",
         "0.43.0",
-        filename="setuptools-68.0.0-py3-none-any.whl",
+        filename="setuptools-77.0.3-py3-none-any.whl",
     )
     with pytest.raises(verifier.VerificationError, match="filename"):
         verifier.validate_wheelhouse(tmp_path)
@@ -411,18 +534,21 @@ def _write_tiny_setuptools_project(checkout: Path) -> None:
     checkout.mkdir(parents=True, exist_ok=True)
     (checkout / "pyproject.toml").write_text(
         """[build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tiny-release-probe"
 version = "1.2.3"
+license = "MIT"
+license-files = ["LICENSE"]
 
 [tool.setuptools]
 py-modules = ["tiny_release_probe"]
 """,
         encoding="utf-8",
     )
+    (checkout / "LICENSE").write_text("MIT License\n", encoding="utf-8")
     (checkout / "tiny_release_probe.py").write_text(
         "VALUE = 1\n",
         encoding="utf-8",
@@ -525,8 +651,10 @@ def make_wheel_with_layout(
         for directory, name, version in canonical_directories:
             archive.writestr(
                 f"{directory}/METADATA",
-                f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n\n",
+                f"Metadata-Version: 2.4\nName: {name}\nVersion: {version}\n"
+                "License-Expression: MIT\nLicense-File: LICENSE\n\n",
             )
+            archive.writestr(f"{directory}/licenses/LICENSE", "MIT License\n")
         for directory, name, version in nested_metadata or []:
             archive.writestr(
                 f"setuptools/_vendor/{directory}/METADATA",
@@ -634,7 +762,7 @@ def test_wheelhouse_rejects_setuptools_below_minimum(tmp_path: Path) -> None:
         "wheel-0.46.3-py3-none-any.whl",
         [("wheel-0.46.3.dist-info", "wheel", "0.46.3")],
     )
-    with pytest.raises(verifier.VerificationError, match="68"):
+    with pytest.raises(verifier.VerificationError, match="77.0.3"):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -672,7 +800,12 @@ def test_repo_fixer_wheel_uses_canonical_metadata_and_ignores_nested(
         [("vendored-9.9.dist-info", "unrelated-vendor", "9.9")],
     )
     metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
-    assert metadata == {"Name": "repo-fixer", "Version": "0.3.1"}
+    assert metadata == {
+        "Name": "repo-fixer",
+        "Version": "0.3.1",
+        "License-Expression": "MIT",
+        "License-File": "LICENSE",
+    }
 
 
 @pytest.mark.parametrize(
@@ -738,7 +871,7 @@ def test_real_offline_build_wheel_passes_canonical_metadata_rule(
     if not wheelhouse.is_dir():
         pytest.skip(
             "offline build-tool wheelhouse unavailable; set "
-            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing setuptools>=68 "
+            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing setuptools>=77.0.3 "
             "and wheel wheels"
         )
     try:
@@ -756,7 +889,12 @@ def test_real_offline_build_wheel_passes_canonical_metadata_rule(
     metadata = verifier.validate_wheel_artifact(
         wheels[0], "tiny-release-probe", "1.2.3"
     )
-    assert metadata == {"Name": "tiny-release-probe", "Version": "1.2.3"}
+    assert metadata == {
+        "Name": "tiny-release-probe",
+        "Version": "1.2.3",
+        "License-Expression": "MIT",
+        "License-File": "LICENSE",
+    }
 
 
 def test_sdist_rejects_wrong_metadata_name(tmp_path: Path) -> None:
@@ -791,4 +929,9 @@ def test_repo_fixer_wheel_directory_name_uses_pep503_normalization(
         [("Repo.Fixer-0.3.1.dist-info", "Repo.Fixer", "0.3.1")],
     )
     metadata = verifier.validate_wheel_artifact(wheel, "repo-fixer", "0.3.1")
-    assert metadata == {"Name": "Repo.Fixer", "Version": "0.3.1"}
+    assert metadata == {
+        "Name": "Repo.Fixer",
+        "Version": "0.3.1",
+        "License-Expression": "MIT",
+        "License-File": "LICENSE",
+    }

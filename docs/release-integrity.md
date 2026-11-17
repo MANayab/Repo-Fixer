@@ -9,6 +9,7 @@ Run the verifier from a clean checkout before every release. It checks the artif
 - Builds one wheel and one sdist from temporary copies of the selected checkout. Build output is kept outside the checkout.
 - Validates wheel ZIP integrity and the unique canonical top-level `.dist-info/METADATA` entry. Nested vendored metadata is ignored. The canonical directory name and version, embedded `Name` and `Version`, wheel filename, and expected project identity must agree.
 - Validates the sdist archive and its single root-level `PKG-INFO`, including the expected distribution name and version.
+- Validates SPDX `License-Expression: MIT` and `License-File: LICENSE` metadata, plus the packaged license file in both wheel and sdist.
 - Installs the wheel and sdist separately in temporary virtual environments, then runs `python -m repo_fixer --help` from a temporary smoke-test directory.
 - Writes SHA-256 sidecars for the wheel and sdist after successful validation and smoke tests.
 
@@ -57,7 +58,7 @@ Use a fresh, empty wheelhouse for each run. The download command collects the bu
 $wheelhouse = Join-Path $env:TEMP ("repo-fixer-wheelhouse-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $wheelhouse | Out-Null
 
-python -m pip download --only-binary=:all: --dest $wheelhouse "setuptools>=68" wheel -r requirements.txt
+python -m pip download --only-binary=:all: --dest $wheelhouse "setuptools>=77.0.3" wheel -r requirements.txt
 
 python scripts\verify_release_artifacts.py --wheelhouse $wheelhouse --no-index
 ```
@@ -67,12 +68,12 @@ python scripts\verify_release_artifacts.py --wheelhouse $wheelhouse --no-index
 ```bash
 wheelhouse="$(mktemp -d)"
 
-python -m pip download --only-binary=:all: --dest "$wheelhouse" "setuptools>=68" wheel -r requirements.txt
+python -m pip download --only-binary=:all: --dest "$wheelhouse" "setuptools>=77.0.3" wheel -r requirements.txt
 
 python scripts/verify_release_artifacts.py --wheelhouse "$wheelhouse" --no-index
 ```
 
-The wheelhouse must contain compatible wheels for the current Python/platform, including `setuptools>=68`, `wheel`, and the dependencies needed to install the project. Do not reuse a wheelhouse containing unrelated or malformed wheel files: every wheel in the directory is validated.
+The wheelhouse must contain compatible wheels for the current Python/platform, including `setuptools>=77.0.3`, `wheel`, and the dependencies needed to install the project. This floor matches the build-system requirement in `pyproject.toml`. Do not reuse a wheelhouse containing unrelated or malformed wheel files: every wheel in the directory is validated.
 
 ## Expected successful output
 
@@ -102,7 +103,7 @@ The paths and artifact filenames above are placeholders; the verifier prints the
 | `expected exactly one top-level .dist-info/METADATA file` | A wheel has no unique canonical metadata entry. Nested vendored metadata does not count. Re-download or rebuild the affected wheel from a trusted source. |
 | `canonical directory rule failed` | The canonical `.dist-info` directory name/version disagrees with the embedded `Name` and `Version`. Treat the wheel as invalid. |
 | `required setuptools wheel is missing` | The wheelhouse does not contain one valid wheel for that build tool. Rebuild the wheelhouse using the recipe above. |
-| `setuptools>=68 is required` | The wheelhouse contains an older setuptools version. Download a current compatible wheel. |
+| `setuptools>=77.0.3 is required` | The wheelhouse contains a setuptools version below the build-system floor declared in `pyproject.toml`. Download a compatible wheel. |
 | `--no-index requires --wheelhouse` | Offline mode was requested without a local dependency directory. Supply both options. |
 | pip reports `No matching distribution found` or a missing package | The required compatible dependency wheel is absent from the wheelhouse, or the wheel is incompatible with this Python/platform. Rebuild the wheelhouse for the environment and include the dependency. |
 

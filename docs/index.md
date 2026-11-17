@@ -19,10 +19,10 @@ repo-fixer scan
 repo-fixer fix --dry-run
 ```
 
-See the [project roadmap](../ROADMAP.md) for shipped work and proposed next steps.
+See the [project roadmap](https://github.com/MANayab/Repo-Fixer/blob/main/ROADMAP.md) for shipped work and proposed next steps.
 
 ## Optional GitHub pull requests
 
 Set a fine-grained `GITHUB_TOKEN` with Contents read/write and Pull requests read/write permissions for the target repository, then run `repo-fixer fix --create-pr`. Repo Fixer proposes additions on a separate branch and opens a pull request for human review. It never pushes to the default branch or merges automatically.
 
-See [usage](usage.md), [release integrity](release-integrity.md), [release process](release-process.md), [templates](templates.md), [safety guarantees](safety.md), and [GitHub integration](github-integration.md).
+See [usage](usage.md), [release integrity](release-integrity.md), [templates](templates.md), [safety guarantees](safety.md), and [GitHub integration](github-integration.md).

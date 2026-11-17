@@ -149,3 +149,129 @@ def test_all_supported_license_texts_are_complete(
         "Copyright" in license_item.content
         or "copyright" in license_item.content.lower()
     )
+
+
+@pytest.mark.parametrize(
+    ("marker", "language"),
+    [
+        ("go.mod", "go"),
+        ("package.json", "node"),
+        ("pyproject.toml", "python"),
+        ("Cargo.toml", "rust"),
+        (None, "unknown"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("license_name", "license_marker"),
+    [
+        ("MIT", "MIT License"),
+        ("Apache-2.0", "Apache License"),
+        ("BSD-3-Clause", "Redistribution and use in source and binary forms"),
+        ("GPL-3.0-only", "GNU GENERAL PUBLIC LICENSE"),
+    ],
+)
+def test_template_regression_matrix(
+    tmp_path: Path,
+    marker: str | None,
+    language: str,
+    license_name: str,
+    license_marker: str,
+) -> None:
+    import re
+
+    import yaml
+
+    root = tmp_path / f"sample-{language}-{license_name}"
+    root.mkdir()
+    if marker is not None:
+        (root / marker).write_text("module example.test\\n" if marker == "go.mod" else "{}", encoding="utf-8")
+
+    assert detect_language(root) == language
+    plan = build_plan(root, license_name=license_name)
+    generated = {item.path: item.content for item in plan.created}
+    expected = {
+        "README.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        ".github/ISSUE_TEMPLATE/bug_report.yml",
+        ".github/ISSUE_TEMPLATE/feature_request.yml",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        "CHANGELOG.md",
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        "LICENSE",
+    }
+    assert set(generated) == expected
+    assert all(content.strip() for content in generated.values())
+
+    unresolved_jinja = re.compile(r"(?<!\\$){{.*?}}|{%\\s*.*?%}", re.DOTALL)
+    for path, content in generated.items():
+        assert unresolved_jinja.search(content) is None, path
+
+    for path, content in generated.items():
+        if path.endswith(".yml"):
+            parsed = yaml.safe_load(content)
+            assert isinstance(parsed, dict), path
+            if path == ".github/workflows/ci.yml":
+                assert parsed["permissions"] == {"contents": "read"}
+                assert isinstance(parsed.get("jobs"), dict) and parsed["jobs"]
+            else:
+                assert parsed.get("name") and isinstance(parsed.get("body"), list)
+
+    workflow = generated[".github/workflows/ci.yml"]
+    if language == "unknown":
+        assert "Language-neutral placeholder" in workflow
+    else:
+        assert f"{language.title()}" in workflow or language == "node"
+    assert license_marker in generated["LICENSE"]
+    assert "<year>" not in generated["LICENSE"]
+    assert "<owner>" not in generated["LICENSE"]
+    assert "<copyright holders>" not in generated["LICENSE"]
+
+
+@pytest.mark.parametrize(
+    ("marker", "language"),
+    [
+        ("go.mod", "go"),
+        ("package.json", "node"),
+        ("pyproject.toml", "python"),
+        ("Cargo.toml", "rust"),
+        (None, "unknown"),
+    ],
+)
+@pytest.mark.parametrize("license_name", ["MIT", "Apache-2.0", "BSD-3-Clause", "GPL-3.0-only"])
+def test_template_matrix_dry_run_and_existing_paths_are_non_destructive(
+    tmp_path: Path, marker: str | None, language: str, license_name: str
+) -> None:
+    from click.testing import CliRunner
+
+    from repo_fixer.cli import main
+
+    root = tmp_path / f"existing-{language}-{license_name}"
+    root.mkdir()
+    if marker is not None:
+        (root / marker).write_text("module example.test\\n" if marker == "go.mod" else "{}", encoding="utf-8")
+    sentinels = {
+        "README.md": "# Preserve this README\\n",
+        "CONTRIBUTING.md": "Preserve contribution guidance\\n",
+        "LICENSE": "Preserve selected license\\n",
+        ".github/workflows/ci.yml": "name: Existing CI\\n",
+    }
+    for relative, content in sentinels.items():
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    before = {relative: (root / relative).read_bytes() for relative in sentinels}
+    dry_run = CliRunner().invoke(
+        main,
+        ["fix", "--dry-run", "--license", license_name, "--path", str(root)],
+    )
+    assert dry_run.exit_code == 0, dry_run.output
+    assert {relative: (root / relative).read_bytes() for relative in sentinels} == before
+    assert sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()) == sorted(sentinels)
+
+    plan = build_plan(root, license_name=license_name)
+    created_paths = {item.path for item in plan.created}
+    assert not (set(sentinels) & created_paths)
+    assert all((root / relative).read_bytes() == content for relative, content in before.items())

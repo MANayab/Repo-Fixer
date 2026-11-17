@@ -4,19 +4,28 @@ import json
 import runpy
 import socket
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
 
 from repo_fixer import __version__
+from repo_fixer.constants import __version__ as constants_version
 from repo_fixer import cli as cli_module
 from repo_fixer.cli import main
 from repo_fixer.generator import FixPlan
 
 
 def test_package_imports_with_version() -> None:
-    assert __version__ == "0.3.1"
+    assert __version__ == "0.3.2"
+
+
+def test_constants_version_matches_pyproject() -> None:
+    project_file = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    project = tomllib.loads(project_file.read_text(encoding="utf-8"))
+
+    assert constants_version == project["project"]["version"]
 
 
 def test_help_lists_commands() -> None:
@@ -175,7 +184,7 @@ def test_python_module_entrypoint_runs(monkeypatch, capsys) -> None:
     with pytest.raises(SystemExit) as error:
         runpy.run_module("repo_fixer", run_name="__main__")
     assert error.value.code == 0
-    assert "Repo Fixer 0.3.1" in capsys.readouterr().out
+    assert "Repo Fixer 0.3.2" in capsys.readouterr().out
 
 
 def test_fix_empty_plan_returns_without_prompt_or_writes(

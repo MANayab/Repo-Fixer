@@ -55,9 +55,30 @@ jobs:
           python -c "from pathlib import Path; Path('artifacts-normal').mkdir(exist_ok=True)"
           python scripts/verify_release_artifacts.py --artifacts-dir artifacts-normal
 
+      - name: Read build-system requirements
+        id: build-requirements
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          requirements = tomllib.loads(
+              Path("pyproject.toml").read_text(encoding="utf-8")
+          )["build-system"]["requires"]
+          setuptools = next(
+              requirement
+              for requirement in requirements
+              if requirement.lower().startswith("setuptools")
+          )
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"setuptools_requirement={setuptools}\n")
+          PY
+
       - name: Build offline wheelhouse
         run: |
-          python -m pip download --only-binary=:all: --dest wheelhouse "setuptools>=77.0.3" wheel -r requirements.txt
+          python -m pip download --only-binary=:all: --dest wheelhouse "${{ steps.build-requirements.outputs.setuptools_requirement }}" wheel -r requirements.txt
 
       - name: Run release verifier (offline mode)
         run: |

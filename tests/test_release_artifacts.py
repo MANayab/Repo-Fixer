@@ -93,7 +93,7 @@ def make_sdist(
 
 
 def valid_wheelhouse(path: Path) -> None:
-    make_wheel(path, "setuptools", "77.0.3")
+    make_wheel(path, "setuptools", str(verifier.minimum_setuptools_version()))
     make_wheel(path, "wheel", "0.43.0")
 
 
@@ -152,7 +152,9 @@ def test_wheel_filename_must_agree_with_embedded_metadata(tmp_path: Path) -> Non
         tmp_path,
         "wheel",
         "0.43.0",
-        filename="setuptools-77.0.3-py3-none-any.whl",
+        filename=(
+            f"setuptools-{verifier.minimum_setuptools_version()}-py3-none-any.whl"
+        ),
     )
     with pytest.raises(verifier.VerificationError, match="filename"):
         verifier.validate_wheel_artifact(wheel, "wheel", "0.43.0")
@@ -214,7 +216,7 @@ def test_missing_setuptools_is_reported(tmp_path: Path) -> None:
 
 
 def test_missing_wheel_is_reported(tmp_path: Path) -> None:
-    make_wheel(tmp_path, "setuptools", "77.0.3")
+    make_wheel(tmp_path, "setuptools", str(verifier.minimum_setuptools_version()))
     with pytest.raises(verifier.VerificationError, match="wheel"):
         verifier.validate_wheelhouse(tmp_path)
 
@@ -222,7 +224,10 @@ def test_missing_wheel_is_reported(tmp_path: Path) -> None:
 def test_old_setuptools_is_rejected(tmp_path: Path) -> None:
     make_wheel(tmp_path, "setuptools", "67.9.0")
     make_wheel(tmp_path, "wheel", "0.43.0")
-    with pytest.raises(verifier.VerificationError, match="77.0.3"):
+    with pytest.raises(
+        verifier.VerificationError,
+        match=str(verifier.minimum_setuptools_version()),
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -241,16 +246,56 @@ def test_wheelhouse_accepts_newer_setuptools(tmp_path: Path) -> None:
     assert result["setuptools"].name == "setuptools-80.0.0-py3-none-any.whl"
 
 
-def test_verifier_setuptools_floor_matches_pyproject() -> None:
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+def test_verifier_setuptools_requirement_matches_pyproject() -> None:
+    project_file = ROOT / "pyproject.toml"
+    project = tomllib.loads(project_file.read_text(encoding="utf-8"))
     requirement = next(
         item
         for item in project["build-system"]["requires"]
         if item.startswith("setuptools")
     )
 
-    assert requirement == f"setuptools>={verifier.MINIMUM_SETUPTOOLS}"
+    assert verifier.setuptools_build_requirement(project_file) == requirement
 
+
+def test_custom_pyproject_minimum_controls_wheelhouse_validation(
+    tmp_path: Path,
+) -> None:
+    import re
+
+    project_file = tmp_path / "pyproject.toml"
+    source = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    changed, count = re.subn(
+        r"setuptools>=\d+(?:\.\d+)+",
+        "setuptools>=88.1.0",
+        source,
+        count=1,
+    )
+    assert count == 1
+    project_file.write_text(changed, encoding="utf-8")
+    assert verifier.setuptools_build_requirement(project_file) == "setuptools>=88.1.0"
+    rejected = tmp_path / "rejected"
+    make_wheel(rejected, "setuptools", "88.0.9")
+    make_wheel(rejected, "wheel", "0.43.0")
+    with pytest.raises(verifier.VerificationError, match="88.1.0"):
+        verifier.validate_wheelhouse(rejected, project_file=project_file)
+    accepted = tmp_path / "accepted"
+    make_wheel(accepted, "setuptools", "88.1.0")
+    make_wheel(accepted, "wheel", "0.43.0")
+    found = verifier.validate_wheelhouse(accepted, project_file=project_file)
+    assert found["setuptools"].name == "setuptools-88.1.0-py3-none-any.whl"
+
+
+def test_no_stale_setuptools_floor_remains_in_requirement_consumers() -> None:
+    stale_floor = ".".join(("77", "0", "3"))
+    for relative in (
+        "scripts/verify_release_artifacts.py",
+        "tests/test_release_artifacts.py",
+        ".github/workflows/release-verification.yml",
+        "docs/release-integrity.md",
+    ):
+        content = (ROOT / relative).read_text(encoding="utf-8")
+        assert stale_floor not in content, relative
 
 def test_well_named_but_misleading_dependency_wheel_is_not_accepted(
     tmp_path: Path,
@@ -259,7 +304,7 @@ def test_well_named_but_misleading_dependency_wheel_is_not_accepted(
         tmp_path,
         "wheel",
         "0.43.0",
-        filename="setuptools-77.0.3-py3-none-any.whl",
+        filename=f"setuptools-{verifier.minimum_setuptools_version()}-py3-none-any.whl",
     )
     with pytest.raises(verifier.VerificationError, match="filename"):
         verifier.validate_wheelhouse(tmp_path)
@@ -532,9 +577,10 @@ def test_cleanup_safety_handles_windows_style_separators_via_pathlib(
 
 def _write_tiny_setuptools_project(checkout: Path) -> None:
     checkout.mkdir(parents=True, exist_ok=True)
+    build_requirement = verifier.setuptools_build_requirement()
     (checkout / "pyproject.toml").write_text(
-        """[build-system]
-requires = ["setuptools>=77.0.3", "wheel"]
+        f"""[build-system]
+requires = ["{build_requirement}", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -762,7 +808,10 @@ def test_wheelhouse_rejects_setuptools_below_minimum(tmp_path: Path) -> None:
         "wheel-0.46.3-py3-none-any.whl",
         [("wheel-0.46.3.dist-info", "wheel", "0.46.3")],
     )
-    with pytest.raises(verifier.VerificationError, match="77.0.3"):
+    with pytest.raises(
+        verifier.VerificationError,
+        match=str(verifier.minimum_setuptools_version()),
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -871,7 +920,8 @@ def test_real_offline_build_wheel_passes_canonical_metadata_rule(
     if not wheelhouse.is_dir():
         pytest.skip(
             "offline build-tool wheelhouse unavailable; set "
-            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing setuptools>=77.0.3 "
+            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing the "
+            "declared setuptools build requirement "
             "and wheel wheels"
         )
     try:

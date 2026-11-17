@@ -106,7 +106,7 @@ def test_python_workflow_preserves_github_actions_expression(tmp_path: Path) -> 
         item for item in plan.created if item.path == ".github/workflows/ci.yml"
     )
 
-    assert 'python-version: ${{ matrix.python-version }}' in workflow.content
+    assert "python-version: ${{ matrix.python-version }}" in workflow.content
 
 
 def test_unknown_language_uses_neutral_workflow(tmp_path: Path) -> None:

@@ -11,9 +11,9 @@ import pytest
 from click.testing import CliRunner
 
 from repo_fixer import __version__
-from repo_fixer.constants import __version__ as constants_version
 from repo_fixer import cli as cli_module
 from repo_fixer.cli import main
+from repo_fixer.constants import __version__ as constants_version
 from repo_fixer.generator import FixPlan
 
 

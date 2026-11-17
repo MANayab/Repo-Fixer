@@ -30,7 +30,7 @@ $env:GITHUB_TOKEN = "github_pat_..."
 repo-fixer fix --create-pr --license MIT
 ```
 
-Set `GITHUB_TOKEN` to a fine-grained token with Contents read/write and Pull requests read/write on the target repository (Metadata read-only is mandatory). Repo Fixer resolves the repository from `GITHUB_REPOSITORY=owner/name` or the local checkout's `origin` remote. It previews the planned additions and asks before creating one pull request; `--yes` skips that confirmation. `--dry-run` never contacts GitHub.
+Set `GITHUB_TOKEN` to a fine-grained token with Contents read/write and Pull requests read/write on the target repository (Metadata read-only is mandatory). Repo Fixer resolves the repository from `GITHUB_REPOSITORY=owner/name` or the local checkout's `origin` remote. It previews the planned additions and always requires a separate interactive confirmation before creating one pull request. `--yes` skips only the normal local new-file confirmation; it never skips the GitHub pull-request confirmation. `--dry-run` never contacts GitHub.
 
 The PR uses a new `repo-fixer/improvements-...` branch and targets the repository's default branch. Only new paths are committed. Existing remote paths stop the operation. `--force` cannot be combined with `--create-pr`. No direct default-branch push, force-push, file deletion, overwrite, or automatic merge is possible.
 

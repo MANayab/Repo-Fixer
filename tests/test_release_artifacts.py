@@ -262,6 +262,7 @@ def test_custom_pyproject_minimum_controls_wheelhouse_validation(
     tmp_path: Path,
 ) -> None:
     import re
+
     project_file = tmp_path / "pyproject.toml"
     source = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     changed, count = re.subn(
@@ -272,10 +273,7 @@ def test_custom_pyproject_minimum_controls_wheelhouse_validation(
     )
     assert count == 1
     project_file.write_text(changed, encoding="utf-8")
-    assert (
-        verifier.setuptools_build_requirement(project_file)
-        == "setuptools>=88.1.0"
-    )
+    assert verifier.setuptools_build_requirement(project_file) == "setuptools>=88.1.0"
     rejected = tmp_path / "rejected"
     make_wheel(rejected, "setuptools", "88.0.9")
     make_wheel(rejected, "wheel", "0.43.0")

@@ -19,7 +19,7 @@ repo-fixer scan
 repo-fixer fix --dry-run
 ```
 
-See the [project roadmap](../ROADMAP.md) for shipped work and proposed next steps.
+See the [project roadmap](https://github.com/MANayab/Repo-Fixer/blob/main/ROADMAP.md) for shipped work and proposed next steps.
 
 ## Optional GitHub pull requests
 

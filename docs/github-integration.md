@@ -26,7 +26,7 @@ $env:GITHUB_REPOSITORY = "owner/repository"
 repo-fixer fix --create-pr --yes
 ```
 
-The command previews the proposed paths and asks for confirmation unless `--yes` is supplied. `--dry-run` never contacts GitHub. Existing remote paths are checked and cause the operation to stop rather than overwrite. All changes are additions on a uniquely named `repo-fixer/improvements-...` branch, followed by one pull request to the repository's default branch.
+The command previews the proposed paths and always asks for a separate interactive confirmation before creating the pull request. `--yes` skips only the normal local new-file confirmation; it never bypasses GitHub pull-request confirmation. `--dry-run` never contacts GitHub. Existing remote paths are checked and cause the operation to stop rather than overwrite. All changes are additions on a uniquely named `repo-fixer/improvements-...` branch, followed by one pull request to the repository's default branch.
 
 The integration never pushes to the default branch, force-pushes, deletes files, replaces existing files, or merges pull requests. Review generated content and run project checks before merging.
 

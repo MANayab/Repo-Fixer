@@ -25,4 +25,4 @@ See the [project roadmap](https://github.com/MANayab/Repo-Fixer/blob/main/ROADMA
 
 Set a fine-grained `GITHUB_TOKEN` with Contents read/write and Pull requests read/write permissions for the target repository, then run `repo-fixer fix --create-pr`. Repo Fixer proposes additions on a separate branch and opens a pull request for human review. It never pushes to the default branch or merges automatically.
 
-See [usage](usage.md), [release integrity](release-integrity.md), [templates](templates.md), [safety guarantees](safety.md), and [GitHub integration](github-integration.md).
+See [usage](usage.md), [release integrity](release-integrity.md), [release process](release-process.md), [templates](templates.md), [safety guarantees](safety.md), and [GitHub integration](github-integration.md).

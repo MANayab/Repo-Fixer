@@ -21,6 +21,7 @@ from repo_fixer.scanner import AuditReport, audit_repository
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(version=__version__, prog_name="Repo Fixer")
 @click.option(
     "--config",
     type=click.Path(path_type=Path, dir_okay=False),

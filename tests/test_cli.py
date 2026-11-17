@@ -27,6 +27,17 @@ def test_constants_version_matches_pyproject() -> None:
 
     assert constants_version == project["project"]["version"]
 
+    result = CliRunner().invoke(main, ["--version"])
+    assert result.exit_code == 0
+    assert project["project"]["version"] in result.output
+
+
+def test_root_version_option() -> None:
+    result = CliRunner().invoke(main, ["--version"])
+    assert result.exit_code == 0
+    assert "Repo Fixer" in result.output
+    assert "0.3.2" in result.output
+
 
 def test_help_lists_commands() -> None:
     result = CliRunner().invoke(main, ["--help"])

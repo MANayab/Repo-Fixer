@@ -11,6 +11,8 @@ on:
       - "MANIFEST*"
       - "requirements*.txt"
       - "repo_fixer/**"
+      - "LICENSE"
+      - "README.md"
   push:
     tags:
       - "v*"

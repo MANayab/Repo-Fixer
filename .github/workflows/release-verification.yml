@@ -73,7 +73,7 @@ jobs:
               if requirement.lower().startswith("setuptools")
           )
           with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
-              output.write(f"setuptools_requirement={setuptools}\\n")
+              output.write(f"setuptools_requirement={setuptools}\n")
           PY
 
       - name: Build offline wheelhouse

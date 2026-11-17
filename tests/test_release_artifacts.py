@@ -152,7 +152,9 @@ def test_wheel_filename_must_agree_with_embedded_metadata(tmp_path: Path) -> Non
         tmp_path,
         "wheel",
         "0.43.0",
-        filename=f"setuptools-{verifier.minimum_setuptools_version()}-py3-none-any.whl",
+        filename=(
+            f"setuptools-{verifier.minimum_setuptools_version()}-py3-none-any.whl"
+        ),
     )
     with pytest.raises(verifier.VerificationError, match="filename"):
         verifier.validate_wheel_artifact(wheel, "wheel", "0.43.0")
@@ -222,7 +224,10 @@ def test_missing_wheel_is_reported(tmp_path: Path) -> None:
 def test_old_setuptools_is_rejected(tmp_path: Path) -> None:
     make_wheel(tmp_path, "setuptools", "67.9.0")
     make_wheel(tmp_path, "wheel", "0.43.0")
-    with pytest.raises(verifier.VerificationError, match=str(verifier.minimum_setuptools_version())):
+    with pytest.raises(
+        verifier.VerificationError,
+        match=str(verifier.minimum_setuptools_version()),
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -253,7 +258,9 @@ def test_verifier_setuptools_requirement_matches_pyproject() -> None:
     assert verifier.setuptools_build_requirement(project_file) == requirement
 
 
-def test_custom_pyproject_minimum_controls_wheelhouse_validation(tmp_path: Path) -> None:
+def test_custom_pyproject_minimum_controls_wheelhouse_validation(
+    tmp_path: Path,
+) -> None:
     import re
     project_file = tmp_path / "pyproject.toml"
     source = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -265,7 +272,10 @@ def test_custom_pyproject_minimum_controls_wheelhouse_validation(tmp_path: Path)
     )
     assert count == 1
     project_file.write_text(changed, encoding="utf-8")
-    assert verifier.setuptools_build_requirement(project_file) == "setuptools>=88.1.0"
+    assert (
+        verifier.setuptools_build_requirement(project_file)
+        == "setuptools>=88.1.0"
+    )
     rejected = tmp_path / "rejected"
     make_wheel(rejected, "setuptools", "88.0.9")
     make_wheel(rejected, "wheel", "0.43.0")
@@ -286,7 +296,8 @@ def test_no_stale_setuptools_floor_remains_in_requirement_consumers() -> None:
         ".github/workflows/release-verification.yml",
         "docs/release-integrity.md",
     ):
-        assert stale_floor not in (ROOT / relative).read_text(encoding="utf-8"), relative
+        content = (ROOT / relative).read_text(encoding="utf-8")
+        assert stale_floor not in content, relative
 
 def test_well_named_but_misleading_dependency_wheel_is_not_accepted(
     tmp_path: Path,
@@ -799,7 +810,10 @@ def test_wheelhouse_rejects_setuptools_below_minimum(tmp_path: Path) -> None:
         "wheel-0.46.3-py3-none-any.whl",
         [("wheel-0.46.3.dist-info", "wheel", "0.46.3")],
     )
-    with pytest.raises(verifier.VerificationError, match=str(verifier.minimum_setuptools_version())):
+    with pytest.raises(
+        verifier.VerificationError,
+        match=str(verifier.minimum_setuptools_version()),
+    ):
         verifier.validate_wheelhouse(tmp_path)
 
 
@@ -908,7 +922,8 @@ def test_real_offline_build_wheel_passes_canonical_metadata_rule(
     if not wheelhouse.is_dir():
         pytest.skip(
             "offline build-tool wheelhouse unavailable; set "
-            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing the declared setuptools build requirement "
+            "REPO_FIXER_TEST_WHEELHOUSE to a directory containing the "
+            "declared setuptools build requirement "
             "and wheel wheels"
         )
     try:

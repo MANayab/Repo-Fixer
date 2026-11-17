@@ -279,9 +279,7 @@ def test_template_matrix_dry_run_and_existing_paths_are_non_destructive(
     after = {relative: (root / relative).read_bytes() for relative in sentinels}
     assert after == before
     actual_files = sorted(
-        path.relative_to(root).as_posix()
-        for path in root.rglob("*")
-        if path.is_file()
+        path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()
     )
     assert actual_files == sorted(sentinels)
 

@@ -27,7 +27,7 @@ from pip._vendor.packaging.version import InvalidVersion, Version
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_FILE = REPOSITORY_ROOT / "pyproject.toml"
-MINIMUM_SETUPTOOLS = Version("68")
+MINIMUM_SETUPTOOLS = Version("77.0.3")
 RUN_TIMEOUT_SECONDS = 600
 
 
@@ -48,7 +48,14 @@ def _metadata_from_bytes(data: bytes, source: Path) -> dict[str, str]:
         Version(version)
     except InvalidVersion as exc:
         raise VerificationError(f"{source}: invalid version {version!r}") from exc
-    return {"Name": name, "Version": version}
+    metadata = {"Name": name, "Version": version}
+    expression = message.get("License-Expression")
+    if expression:
+        metadata["License-Expression"] = expression
+    license_files = message.get_all("License-File", [])
+    if license_files:
+        metadata["License-File"] = "\n".join(license_files)
+    return metadata
 
 
 def _same_distribution(left: str, right: str) -> bool:
@@ -94,10 +101,23 @@ def _canonical_wheel_metadata(
     return metadata
 
 
+def _validate_license_metadata(
+    metadata: dict[str, str], *, license_present: bool, source: Path
+) -> None:
+    if metadata.get("License-Expression") != "MIT":
+        raise VerificationError(f"{source}: expected License-Expression metadata 'MIT'")
+    if "LICENSE" not in metadata.get("License-File", "").splitlines():
+        raise VerificationError(
+            f"{source}: metadata must declare License-File: LICENSE"
+        )
+    if not license_present:
+        raise VerificationError(f"{source}: packaged LICENSE file is missing")
+
+
 def validate_wheel_artifact(
     wheel_path: Path, expected_name: str, expected_version: str
 ) -> dict[str, str]:
-    """Validate ZIP integrity, wheel filename consistency, and embedded metadata."""
+    """Validate ZIP integrity, wheel metadata, and packaged license."""
     wheel_path = Path(wheel_path)
     try:
         with zipfile.ZipFile(wheel_path) as archive:
@@ -119,6 +139,18 @@ def validate_wheel_artifact(
     except (InvalidVersion, ValueError) as exc:
         raise VerificationError(f"{wheel_path}: invalid wheel filename: {exc}") from exc
 
+    with zipfile.ZipFile(wheel_path) as archive:
+        license_present = any(
+            len(PurePosixPath(member).parts) >= 3
+            and PurePosixPath(member).parts[-2:] == ("licenses", "LICENSE")
+            and any(
+                part.endswith(".dist-info") for part in PurePosixPath(member).parts[:-2]
+            )
+            for member in archive.namelist()
+        )
+    _validate_license_metadata(
+        metadata, license_present=license_present, source=wheel_path
+    )
     if not _same_distribution(str(filename_name), metadata["Name"]):
         raise VerificationError(
             f"{wheel_path}: filename distribution does not match embedded metadata"
@@ -143,7 +175,7 @@ def validate_wheel_artifact(
 def validate_sdist_artifact(
     sdist_path: Path, expected_name: str, expected_version: str
 ) -> dict[str, str]:
-    """Validate an sdist tar archive and its root PKG-INFO metadata."""
+    """Validate an sdist archive, root PKG-INFO, and packaged LICENSE."""
     sdist_path = Path(sdist_path)
     try:
         with tarfile.open(sdist_path, mode="r:*") as archive:
@@ -173,6 +205,15 @@ def validate_sdist_artifact(
             if stream is None:
                 raise VerificationError(f"{sdist_path}: PKG-INFO is unreadable")
             metadata = _metadata_from_bytes(stream.read(), sdist_path)
+            root = PurePosixPath(members[0].name).parts[0]
+            license_present = any(
+                member.isfile()
+                and PurePosixPath(member.name).parts == (root, "LICENSE")
+                for member in all_members
+            )
+            _validate_license_metadata(
+                metadata, license_present=license_present, source=sdist_path
+            )
     except (OSError, tarfile.TarError, EOFError) as exc:
         raise VerificationError(f"{sdist_path}: unreadable sdist: {exc}") from exc
 
@@ -215,7 +256,7 @@ def validate_existing_artifacts(
 
 
 def validate_wheelhouse(wheelhouse: Path) -> dict[str, Path]:
-    """Validate wheel ZIPs and locate setuptools>=68 and wheel by metadata."""
+    """Validate wheel ZIPs and locate setuptools>=77.0.3 and wheel by metadata."""
     wheelhouse = Path(wheelhouse)
     if not wheelhouse.is_dir():
         raise VerificationError(f"{wheelhouse}: wheelhouse directory does not exist")
@@ -268,7 +309,7 @@ def validate_wheelhouse(wheelhouse: Path) -> dict[str, Path]:
                     ) from exc
                 if version < MINIMUM_SETUPTOOLS:
                     raise VerificationError(
-                        f"{candidate}: setuptools>=68 is required; "
+                        f"{candidate}: setuptools>=77.0.3 is required; "
                         f"found {metadata['Version']}"
                     )
 
@@ -553,7 +594,7 @@ def build_artifacts(
             "--disable-pip-version-check",
             "--no-input",
             *index_flags,
-            "setuptools>=68",
+            "setuptools>=77.0.3",
             "wheel",
         ]
         _run_build_step("Source distribution build", install_build_requirements)

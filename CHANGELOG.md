@@ -4,12 +4,21 @@ All notable changes to Repo Fixer are documented here.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-17
+
 ### Added
-- Added a release-artifact verifier for building, validating, installing, smoke-testing, and checksumming wheel and source-distribution artifacts.
+- Added a release-artifact verifier that builds, validates, installs, smoke-tests, and checksums wheel and source-distribution artifacts.
+- Added release-verification CI for normal and offline artifact checks across supported Python versions on Linux and Windows.
+- Added a maintainer release-process runbook covering exact-commit verification, artifact metadata, checksums, and post-release validation.
+
+### Changed
+- Raised the setuptools build requirement to `>=77.0.3` and enforced PEP 639 license metadata plus packaged LICENSE files in wheel and source-distribution artifacts.
+- Added project homepage, repository, documentation, issue-tracker, and changelog URLs to package metadata; limited Python classifiers to 3.11 and 3.12.
 
 ### Fixed
-- Added regression coverage for source-distribution validation of a single root-level `PKG-INFO` with the expected project identity.
-- Identify wheel metadata from the unique canonical top-level `.dist-info/METADATA` entry, ignoring nested vendored metadata and checking directory/metadata identity.
+- Prompted interactively when license selection is required and provided explicit `--license` guidance in non-interactive mode.
+- Restored correct em-dash rendering in findings output and added regression coverage against Unicode mojibake.
+- Linked the maintainer release-process runbook from the documentation home.
 
 ## [0.3.1] — Stabilization and Release Integrity
 

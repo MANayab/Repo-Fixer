@@ -208,3 +208,14 @@ def test_config_reports_invalid_yaml(tmp_path: Path) -> None:
     path.write_text("generate: [unterminated", encoding="utf-8")
     with pytest.raises(ValueError, match="Could not read configuration"):
         load_config(path)
+
+
+def test_build_plan_records_exact_license_selection_requirement(
+    tmp_path: Path,
+) -> None:
+    plan = build_plan(tmp_path)
+
+    assert (
+        "LICENSE — selection required; choose MIT, Apache-2.0, "
+        "BSD-3-Clause, or GPL-3.0-only"
+    ) in plan.skipped

@@ -33,24 +33,65 @@ jobs:
         id: version
         shell: bash
         run: |
-          project_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
-          if [[ "${GITHUB_REF_NAME}" != v* ]]; then
-            echo "Expected a version tag beginning with v." >&2
-            exit 1
-          fi
-          tag_version="${GITHUB_REF_NAME#v}"
-          if [[ "$tag_version" != "$project_version" ]]; then
-            echo "Tag version $tag_version does not match pyproject.toml version $project_version." >&2
-            exit 1
-          fi
-          {
-            echo "project_version=$project_version"
-            echo "tag_version=$tag_version"
-          } >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
 
-      # The verifier enforces the build-system requirement declared in pyproject.toml.
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+          project_version = str(project["version"])
+
+          def tag_matches(tag: str, version: str) -> bool:
+              return tag.startswith("v") and tag[1:] == version
+
+          # Regression proof for the approved 0.3.2 release:
+          assert tag_matches("v0.3.2", "0.3.2")
+          assert not tag_matches("v0.3.3", "0.3.2")
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not tag_matches(tag, project_version):
+              raise SystemExit(
+                  f"Tag version {tag.removeprefix('v')} does not match "
+                  f"pyproject.toml version {project_version}."
+              )
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"project_version={project_version}\n")
+              output.write(f"tag_version={tag[1:]}\n")
+          PY
+
+      - name: Read the setuptools build requirement from pyproject.toml
+        id: build-requirements
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          requirements = tomllib.loads(
+              Path("pyproject.toml").read_text(encoding="utf-8")
+          )["build-system"]["requires"]
+          setuptools = [
+              requirement
+              for requirement in requirements
+              if requirement.lower().startswith("setuptools")
+          ]
+          if len(setuptools) != 1:
+              raise SystemExit(
+                  "Expected exactly one setuptools requirement in "
+                  "pyproject.toml [build-system].requires"
+              )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"setuptools_requirement={setuptools[0]}\n")
+          PY
+
+      - name: Prepare complete offline wheelhouse
+        run: |
+          python -m pip download --only-binary=:all: --dest wheelhouse "${{ steps.build-requirements.outputs.setuptools_requirement }}" wheel -r requirements.txt
+
       - name: Build, validate, install, smoke-test, and checksum artifacts
-        run: python scripts/verify_release_artifacts.py --artifacts-dir dist
+        run: python scripts/verify_release_artifacts.py --artifacts-dir dist --wheelhouse wheelhouse --no-index
 
       - name: Preserve verified artifacts and checksum sidecars
         uses: actions/upload-artifact@v4

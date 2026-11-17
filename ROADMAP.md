@@ -13,11 +13,7 @@ This document separates work already present in the repository from ideas that h
 
 The following are candidates only. They are not commitments, scheduled work, or current product capabilities.
 
-- **Broaden starter-template coverage:** consider additional language or project ecosystems beyond the current Go, Node, Python, Rust, and generic templates.
-- **Expand generated-template regression coverage:** add systematic checks across the existing ecosystem templates and the generated files they produce.
-- **Strengthen optional GitHub integration validation:** consider additional end-to-end validation for the pull-request workflow. Current documentation states that GitHub API behavior is tested with mocked requests and CI does not use a live token.
-- **Evaluate a PyPI publishing workflow:** decide whether publishing automation is wanted and, if so, design it around trusted publishing rather than a long-lived upload token. No publishing workflow is currently committed.
-
-## Prioritization
-
-These proposals need maintainer selection before implementation. Which proposed item should be considered first?
+1. **Expand generated-template regression coverage:** add systematic regression checks across the existing ecosystem templates and the generated files they produce. This would strengthen checks for generated output without changing the supported template set.
+2. **Evaluate a PyPI publishing workflow:** consider publishing automation using trusted publishing only, not a long-lived upload token. This depends on completing the setuptools compatibility fix, confirming the `repo-fixer` package name, and choosing a release version.
+3. **Broaden starter-template coverage:** consider additional language or project ecosystems beyond the current Go, Node, Python, Rust, and generic templates. This would expand the set of project types for which Repo Fixer provides starter templates.
+4. **Strengthen GitHub integration validation:** consider additional end-to-end validation for the pull-request workflow. This would be manual and opt-in, not part of CI; current documentation states that GitHub API behavior is tested with mocked requests and CI does not use a live token.

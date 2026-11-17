@@ -57,7 +57,7 @@ jobs:
 
       - name: Build offline wheelhouse
         run: |
-          python -m pip download --only-binary=:all: --dest wheelhouse "setuptools>=68" wheel -r requirements.txt
+          python -m pip download --only-binary=:all: --dest wheelhouse "setuptools>=77.0.3" wheel -r requirements.txt
 
       - name: Run release verifier (offline mode)
         run: |

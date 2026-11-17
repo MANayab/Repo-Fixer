@@ -184,7 +184,10 @@ def test_template_regression_matrix(
     root = tmp_path / f"sample-{language}-{license_name}"
     root.mkdir()
     if marker is not None:
-        (root / marker).write_text("module example.test\\n" if marker == "go.mod" else "{}", encoding="utf-8")
+        (root / marker).write_text(
+            "module example.test\\n" if marker == "go.mod" else "{}",
+            encoding="utf-8",
+        )
 
     assert detect_language(root) == language
     plan = build_plan(root, license_name=license_name)
@@ -239,7 +242,9 @@ def test_template_regression_matrix(
         (None, "unknown"),
     ],
 )
-@pytest.mark.parametrize("license_name", ["MIT", "Apache-2.0", "BSD-3-Clause", "GPL-3.0-only"])
+@pytest.mark.parametrize(
+    "license_name", ["MIT", "Apache-2.0", "BSD-3-Clause", "GPL-3.0-only"]
+)
 def test_template_matrix_dry_run_and_existing_paths_are_non_destructive(
     tmp_path: Path, marker: str | None, language: str, license_name: str
 ) -> None:
@@ -250,7 +255,10 @@ def test_template_matrix_dry_run_and_existing_paths_are_non_destructive(
     root = tmp_path / f"existing-{language}-{license_name}"
     root.mkdir()
     if marker is not None:
-        (root / marker).write_text("module example.test\\n" if marker == "go.mod" else "{}", encoding="utf-8")
+        (root / marker).write_text(
+            "module example.test\\n" if marker == "go.mod" else "{}",
+            encoding="utf-8",
+        )
     sentinels = {
         "README.md": "# Preserve this README\\n",
         "CONTRIBUTING.md": "Preserve contribution guidance\\n",
@@ -268,10 +276,19 @@ def test_template_matrix_dry_run_and_existing_paths_are_non_destructive(
         ["fix", "--dry-run", "--license", license_name, "--path", str(root)],
     )
     assert dry_run.exit_code == 0, dry_run.output
-    assert {relative: (root / relative).read_bytes() for relative in sentinels} == before
-    assert sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()) == sorted(sentinels)
+    after = {relative: (root / relative).read_bytes() for relative in sentinels}
+    assert after == before
+    actual_files = sorted(
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if path.is_file()
+    )
+    assert actual_files == sorted(sentinels)
 
     plan = build_plan(root, license_name=license_name)
     created_paths = {item.path for item in plan.created}
     assert not (set(sentinels) & created_paths)
-    assert all((root / relative).read_bytes() == content for relative, content in before.items())
+    assert all(
+        (root / relative).read_bytes() == content
+        for relative, content in before.items()
+    )

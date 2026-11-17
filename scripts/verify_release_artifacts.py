@@ -265,7 +265,13 @@ def _setuptools_requirement(project_file: Path = PROJECT_FILE) -> Requirement:
             for item in requirements
             if canonicalize_name(Requirement(item).name) == "setuptools"
         ]
-    except (OSError, KeyError, TypeError, tomllib.TOMLDecodeError, InvalidRequirement) as exc:
+    except (
+        OSError,
+        KeyError,
+        TypeError,
+        tomllib.TOMLDecodeError,
+        InvalidRequirement,
+    ) as exc:
         raise VerificationError(
             f"{project_file}: cannot read setuptools build requirement: {exc}"
         ) from exc
@@ -276,7 +282,8 @@ def _setuptools_requirement(project_file: Path = PROJECT_FILE) -> Requirement:
         )
     if not any(spec.operator in {">", ">="} for spec in matches[0].specifier):
         raise VerificationError(
-            f"{project_file}: setuptools build requirement must declare a minimum version"
+            f"{project_file}: setuptools build requirement must declare "
+            "a minimum version"
         )
     return matches[0]
 
@@ -350,7 +357,9 @@ def validate_wheelhouse(
                     raise VerificationError(
                         f"{candidate}: invalid setuptools version"
                     ) from exc
-                if not setuptools_requirement.specifier.contains(version, prereleases=True):
+                if not setuptools_requirement.specifier.contains(
+                    version, prereleases=True
+                ):
                     raise VerificationError(
                         f"{candidate}: {setuptools_requirement} is required; "
                         f"found {metadata['Version']}"
@@ -596,7 +605,9 @@ def build_artifacts(
     """Build a wheel with pip and an sdist with setuptools' PEP 517 backend."""
     ensure_empty_artifact_directory(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    setuptools_requirement = str(_setuptools_requirement(Path(checkout) / "pyproject.toml"))
+    setuptools_requirement = str(
+        _setuptools_requirement(Path(checkout) / "pyproject.toml")
+    )
     index_flags = pip_index_arguments(wheelhouse, no_index)
 
     with temporary_workspace(checkout, artifact_dir) as workspace:

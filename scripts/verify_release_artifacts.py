@@ -22,12 +22,12 @@ from contextlib import contextmanager
 from email.parser import Parser
 from pathlib import Path, PurePosixPath
 
+from pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pip._vendor.packaging.utils import canonicalize_name, parse_wheel_filename
 from pip._vendor.packaging.version import InvalidVersion, Version
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_FILE = REPOSITORY_ROOT / "pyproject.toml"
-MINIMUM_SETUPTOOLS = Version("77.0.3")
 RUN_TIMEOUT_SECONDS = 600
 
 
@@ -255,8 +255,58 @@ def validate_existing_artifacts(
     return wheels, sdists
 
 
-def validate_wheelhouse(wheelhouse: Path) -> dict[str, Path]:
-    """Validate wheel ZIPs and locate setuptools>=77.0.3 and wheel by metadata."""
+def _setuptools_requirement(project_file: Path = PROJECT_FILE) -> Requirement:
+    """Read the setuptools build requirement from a project's pyproject.toml."""
+    try:
+        with Path(project_file).open("rb") as stream:
+            requirements = tomllib.load(stream)["build-system"]["requires"]
+        matches = [
+            Requirement(item)
+            for item in requirements
+            if canonicalize_name(Requirement(item).name) == "setuptools"
+        ]
+    except (
+        OSError,
+        KeyError,
+        TypeError,
+        tomllib.TOMLDecodeError,
+        InvalidRequirement,
+    ) as exc:
+        raise VerificationError(
+            f"{project_file}: cannot read setuptools build requirement: {exc}"
+        ) from exc
+    if len(matches) != 1:
+        raise VerificationError(
+            f"{project_file}: expected exactly one setuptools requirement in "
+            "[build-system].requires"
+        )
+    if not any(spec.operator in {">", ">="} for spec in matches[0].specifier):
+        raise VerificationError(
+            f"{project_file}: setuptools build requirement must declare "
+            "a minimum version"
+        )
+    return matches[0]
+
+
+def minimum_setuptools_version(project_file: Path = PROJECT_FILE) -> Version:
+    """Return the strongest declared setuptools lower bound."""
+    requirement = _setuptools_requirement(project_file)
+    return max(
+        Version(spec.version)
+        for spec in requirement.specifier
+        if spec.operator in {">", ">="}
+    )
+
+
+def setuptools_build_requirement(project_file: Path = PROJECT_FILE) -> str:
+    """Return the complete setuptools requirement declared by the project."""
+    return str(_setuptools_requirement(project_file))
+
+def validate_wheelhouse(
+    wheelhouse: Path, *, project_file: Path = PROJECT_FILE
+) -> dict[str, Path]:
+    """Validate wheel ZIPs and locate the declared setuptools and wheel builds."""
+    setuptools_requirement = _setuptools_requirement(project_file)
     wheelhouse = Path(wheelhouse)
     if not wheelhouse.is_dir():
         raise VerificationError(f"{wheelhouse}: wheelhouse directory does not exist")
@@ -307,9 +357,11 @@ def validate_wheelhouse(wheelhouse: Path) -> dict[str, Path]:
                     raise VerificationError(
                         f"{candidate}: invalid setuptools version"
                     ) from exc
-                if version < MINIMUM_SETUPTOOLS:
+                if not setuptools_requirement.specifier.contains(
+                    version, prereleases=True
+                ):
                     raise VerificationError(
-                        f"{candidate}: setuptools>=77.0.3 is required; "
+                        f"{candidate}: {setuptools_requirement} is required; "
                         f"found {metadata['Version']}"
                     )
 
@@ -553,6 +605,9 @@ def build_artifacts(
     """Build a wheel with pip and an sdist with setuptools' PEP 517 backend."""
     ensure_empty_artifact_directory(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    setuptools_requirement = str(
+        _setuptools_requirement(Path(checkout) / "pyproject.toml")
+    )
     index_flags = pip_index_arguments(wheelhouse, no_index)
 
     with temporary_workspace(checkout, artifact_dir) as workspace:
@@ -594,7 +649,7 @@ def build_artifacts(
             "--disable-pip-version-check",
             "--no-input",
             *index_flags,
-            "setuptools>=77.0.3",
+            setuptools_requirement,
             "wheel",
         ]
         _run_build_step("Source distribution build", install_build_requirements)
@@ -626,7 +681,7 @@ def verify_release(
     if no_index and wheelhouse is None:
         raise VerificationError("--no-index requires --wheelhouse")
     if wheelhouse is not None:
-        validate_wheelhouse(wheelhouse)
+        validate_wheelhouse(wheelhouse, project_file=Path(checkout) / "pyproject.toml")
     wheels, sdists = build_artifacts(
         checkout,
         artifact_dir,

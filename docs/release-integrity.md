@@ -58,7 +58,8 @@ Use a fresh, empty wheelhouse for each run. The download command collects the bu
 $wheelhouse = Join-Path $env:TEMP ("repo-fixer-wheelhouse-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $wheelhouse | Out-Null
 
-python -m pip download --only-binary=:all: --dest $wheelhouse "setuptools>=77.0.3" wheel -r requirements.txt
+$setuptoolsRequirement = python -c "import tomllib; from pathlib import Path; print(next(item for item in tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))['build-system']['requires'] if item.lower().startswith('setuptools')))"
+python -m pip download --only-binary=:all: --dest $wheelhouse $setuptoolsRequirement wheel -r requirements.txt
 
 python scripts\verify_release_artifacts.py --wheelhouse $wheelhouse --no-index
 ```
@@ -68,12 +69,13 @@ python scripts\verify_release_artifacts.py --wheelhouse $wheelhouse --no-index
 ```bash
 wheelhouse="$(mktemp -d)"
 
-python -m pip download --only-binary=:all: --dest "$wheelhouse" "setuptools>=77.0.3" wheel -r requirements.txt
+setuptools_requirement="$(python -c 'import tomllib; from pathlib import Path; print(next(item for item in tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["build-system"]["requires"] if item.lower().startswith("setuptools")))')"
+python -m pip download --only-binary=:all: --dest "$wheelhouse" "$setuptools_requirement" wheel -r requirements.txt
 
 python scripts/verify_release_artifacts.py --wheelhouse "$wheelhouse" --no-index
 ```
 
-The wheelhouse must contain compatible wheels for the current Python/platform, including `setuptools>=77.0.3`, `wheel`, and the dependencies needed to install the project. This floor matches the build-system requirement in `pyproject.toml`. Do not reuse a wheelhouse containing unrelated or malformed wheel files: every wheel in the directory is validated.
+The wheelhouse must contain compatible wheels for the current Python/platform, including the setuptools requirement declared in `[build-system].requires` in `pyproject.toml`, `wheel`, and the dependencies needed to install the project. Both commands above read that requirement directly from the project file. Do not reuse a wheelhouse containing unrelated or malformed wheel files: every wheel in the directory is validated.
 
 ## Expected successful output
 
@@ -103,7 +105,7 @@ The paths and artifact filenames above are placeholders; the verifier prints the
 | `expected exactly one top-level .dist-info/METADATA file` | A wheel has no unique canonical metadata entry. Nested vendored metadata does not count. Re-download or rebuild the affected wheel from a trusted source. |
 | `canonical directory rule failed` | The canonical `.dist-info` directory name/version disagrees with the embedded `Name` and `Version`. Treat the wheel as invalid. |
 | `required setuptools wheel is missing` | The wheelhouse does not contain one valid wheel for that build tool. Rebuild the wheelhouse using the recipe above. |
-| `setuptools>=77.0.3 is required` | The wheelhouse contains a setuptools version below the build-system floor declared in `pyproject.toml`. Download a compatible wheel. |
+| `setuptools requirement is required` | The wheelhouse contains a setuptools version that does not satisfy the build-system requirement declared in `pyproject.toml`. Download a compatible wheel. |
 | `--no-index requires --wheelhouse` | Offline mode was requested without a local dependency directory. Supply both options. |
 | pip reports `No matching distribution found` or a missing package | The required compatible dependency wheel is absent from the wheelhouse, or the wheel is incompatible with this Python/platform. Rebuild the wheelhouse for the environment and include the dependency. |
 

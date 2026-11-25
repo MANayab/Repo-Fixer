@@ -202,7 +202,7 @@ def test_invalid_existing_artifact_is_rejected_without_replacement(
     artifact = tmp_path / "repo_fixer-0.3.1-py3-none-any.whl"
     original = b"invalid existing artifact"
     artifact.write_bytes(original)
-    with pytest.raises(verifier.VerificationError, match=str(artifact)):
+    with pytest.raises(verifier.VerificationError, match=re.escape(str(artifact))):
         verifier.validate_existing_artifacts(tmp_path, "repo-fixer", "0.3.1")
     assert artifact.read_bytes() == original
 
@@ -513,7 +513,7 @@ def test_build_refuses_nonempty_artifact_directory(tmp_path: Path) -> None:
     artifacts.mkdir()
     sentinel = artifacts / "keep.txt"
     sentinel.write_text("keep", encoding="utf-8")
-    with pytest.raises(verifier.VerificationError, match=str(sentinel)):
+    with pytest.raises(verifier.VerificationError, match=re.escape(str(sentinel))):
         verifier.ensure_empty_artifact_directory(artifacts)
     assert sentinel.read_text(encoding="utf-8") == "keep"
 

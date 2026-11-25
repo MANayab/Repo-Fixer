@@ -96,6 +96,19 @@ def test_language_detection(tmp_path: Path, marker: str, language: str) -> None:
     assert detect_language(tmp_path) == language
 
 
+def test_python_workflow_preserves_github_actions_expression(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = 'example'\n", encoding="utf-8"
+    )
+
+    plan = build_plan(tmp_path)
+    workflow = next(
+        item for item in plan.created if item.path == ".github/workflows/ci.yml"
+    )
+
+    assert "python-version: ${{ matrix.python-version }}" in workflow.content
+
+
 def test_unknown_language_uses_neutral_workflow(tmp_path: Path) -> None:
     plan = build_plan(tmp_path)
     workflow = next(item for item in plan.created if item.path.endswith("ci.yml"))
